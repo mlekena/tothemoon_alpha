@@ -7,7 +7,7 @@ import os
 import shutil
 
 # microsoft, google, tesla, taiwan semi conductor, Citi group, Bumble, Apple
-tickers_ = ["MSFT", "GOOGL"]#, "TSLA", "TSM", "C", "BMBL", "AAPL"]
+tickers_ = ["MSFT", "GOOGL", "TSLA", "TSM", "C", "CSCO", "AAPL"]
 file_postfix = "_hist_data.csv"
 default_data_folder ="__data_file"
 parser = argparse.ArgumentParser(description="Determine handling of fetched data.")
