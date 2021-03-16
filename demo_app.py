@@ -1,12 +1,14 @@
+import time
+from typing import Dict, List, Tuple
+
 import streamlit as st
 import pandas as pd
 from streamlit import write as wr
 from streamlit import sidebar as sbar
-import time
 
 
 @st.cache()
-def get_data():
+def get_data() -> pd.DataFrame:
     return pd.read_csv("__data_file/C_hist_data.csv")
 
 
@@ -28,14 +30,14 @@ class Failure(Status):
 class Stocks:
 
     def __init__(self):
-        def GenPath(
-            ticker): return "__data_file/{}_hist_data.csv".format(ticker)
-        self.portfolio_ = {[("AAPL", GenPath("AAPL")),
-                            ("C", GenPath("C")),
-                            ("TSLA", GenPath("TSLA"))]}
+        def GenPath(ticker) -> str:
+            return "__data_file/{}_hist_data.csv".format(ticker)
+        self.portfolio_ = dict([("AAPL", GenPath("AAPL")),
+                                ("C", GenPath("C")),
+                                ("TSLA", GenPath("TSLA"))])
         self.stock_cache_ = {}
 
-    def GetStock(self, ticker):
+    def GetStock(self, ticker) -> Tuple[Status, pd.DataFrame]:
         if ticker not in self.portfolio_:
             return (Failure(), pd.Dataframe())
         stock = self.portfolio_[ticker]
@@ -89,9 +91,11 @@ st.balloons()
 
 
 def RenderHome():
-    def RenderStocksInPortfolio(stocks: Stocks):
-        stock_picker = list()
-        for stock_info in stocks.portfolio_.keys()
+    def RenderStocksInPortfolioPicker(stocks: Stocks) -> List[Tuple[str, bool]]:
+        stock_picker: List[Tuple[str, bool]] = []
+        for ticker, _ in stocks.portfolio_.items():
+            stock_picker.append((ticker, st.checkbox(ticker)))
+        return stock_picker
 
     data = get_data()
     time_cprice_data = data[["Close"]]  # .set_index("Date")
@@ -99,9 +103,10 @@ def RenderHome():
     chart_placeholder = st.empty()
     _1, mc, _2 = st.beta_columns(3)
     with mc:
-        use_lReg = st.checkbox("Use Linear Regression")
-        use_o = st.checkbox("Use Neural Network")
-        use_m = st.checkbox("Use Deep NN")
+        # use_lReg = st.checkbox("Use Linear Regression")
+        # use_o = st.checkbox("Use Neural Network")
+        # use_m = st.checkbox("Use Deep NN")
+        RenderStocksInPortfolio(stock_data)
     st.dataframe(charted_data)
     chart_placeholder.line_chart(charted_data)
 

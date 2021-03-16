@@ -1,0 +1,5 @@
+Static Analysis
+    added pylint for consistent styling according to pip8
+    added mypy to add type checking and analysis.   
+        Using typing in codebase
+    
