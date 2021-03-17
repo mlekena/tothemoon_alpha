@@ -2,4 +2,5 @@ Static Analysis
     added pylint for consistent styling according to pip8
     added mypy to add type checking and analysis.   
         Using typing in codebase
-    
+    turning on --strict peforms static analysis on save. This
+    will produce more secure code based on my past experience.

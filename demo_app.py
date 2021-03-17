@@ -1,5 +1,5 @@
 import time
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any
 
 import streamlit as st
 import pandas as pd
@@ -16,6 +16,10 @@ class Status:
     def __init__(self) -> None:
         self.message = ""
 
+    # https://github.com/python/mypy/issues/2783#issuecomment-276596902
+    def __eq__(self, other: Any) -> bool:
+        return self.message == other.message  # type: ignore
+
 
 class Success(Status):
     def __init__(self) -> None:
@@ -31,18 +35,20 @@ class Stocks:
 
     def __init__(self) -> None:
         def GenPath(ticker: str) -> str:
+            filepath = "__data_file/{}_hist_data.csv".format(ticker)
+            print(filepath)
             return "__data_file/{}_hist_data.csv".format(ticker)
         self.portfolio_ = dict([("AAPL", GenPath("AAPL")),
                                 ("C", GenPath("C")),
                                 ("TSLA", GenPath("TSLA"))])
-        self.stock_cache_: Dict[str, pd.DataFrame]
+        self.stock_cache_: Dict[str, pd.DataFrame] = {}
 
     def GetStock(self, ticker: str) -> Tuple[Status, pd.DataFrame]:
         if ticker not in self.portfolio_:
             return (Failure(), pd.Dataframe())
         stock = self.portfolio_[ticker]
         if ticker not in self.stock_cache_:
-            self.stock_cache_[ticker] = pd.read_csv(stock[1])
+            self.stock_cache_[ticker] = pd.read_csv(stock)
         return (Success(), self.stock_cache_[ticker])
 
 
@@ -71,22 +77,6 @@ def GenerateSideBar() -> str:
     return selected_window
 
 
-# data = get_data()
-
-# time_cprice_data = data[["Close"]]#.set_index("Date")
-# charted_data = time_cprice_data
-
-# # pbar = st.progress(0)
-# chart = st.line_chart(charted_data)
-# lc, mc, rc = st.beta_columns(3)
-# with lc:
-#     use_lReg = st.checkbox("Use Linear Regression")
-# with mc:
-#     use_o = st.checkbox("Use Neural Network")
-# with rc:
-#     use_m = st.checkbox("Use Deep NN")
-
-
 st.balloons()
 
 
@@ -97,24 +87,36 @@ def RenderHome() -> None:
             stock_picker.append((ticker, st.checkbox(ticker)))
         return stock_picker
 
-    def GatherSelectedData(selected_tickers: List[Tuple[str, bool]]) -> pd.DataFrame:
-        pass
+    def GatherSelectedData(selected_tickers: List[Tuple[str, bool]],
+                           stocks: Stocks) -> pd.DataFrame:
+        rtn_df = pd.DataFrame()
+        for ticker, selected in selected_tickers:
+            if not selected:
+                continue
+            status_and_data = stocks.GetStock(ticker)
+            print(type(status_and_data[0]))
+            if status_and_data[0] == Success():
+                data = status_and_data[1]
+            else:
+                raise Exception("Failed to get ticker: {}".format(ticker))
+            column = "{}_close".format(ticker)
+            # rtn_df.insert(rtn_df.shape[1], column, data[["Close"]])
+            rtn_df[column] = pd.Series(data["Close"])
+        return rtn_df
 
-    data = get_data()
-    time_cprice_data = data[["Close"]]  # .set_index("Date")
-    charted_data = time_cprice_data
+    # data = get_data()
+    # time_cprice_data = data[["Close"]]  # .set_index("Date")
+    # charted_data = time_cprice_data
     chart_placeholder = st.empty()
     stocks_to_show: List[Tuple[str, bool]]
     _1, mc, _2 = st.beta_columns(3)
     with mc:
-        # use_lReg = st.checkbox("Use Linear Regression")
-        # use_o = st.checkbox("Use Neural Network")
-        # use_m = st.checkbox("Use Deep NN")
         stocks_to_show = RenderStocksInPortfolioPicker(stock_data)
 
-    GatherSelectedData(stocks_to_show)
+    charted_data = GatherSelectedData(stocks_to_show, stock_data)
     st.dataframe(charted_data)
-    chart_placeholder.line_chart(charted_data)
+    # prints a table of the closing prices.
+    # chart_placeholder.line_chart(charted_data)
 
     # pbar = st.progress(0)
 # Main Construction
