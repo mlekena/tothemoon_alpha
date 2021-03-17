@@ -7,43 +7,43 @@ from streamlit import write as wr
 from streamlit import sidebar as sbar
 
 
-@st.cache()
+@st.cache()  # type: ignore
 def get_data() -> pd.DataFrame:
     return pd.read_csv("__data_file/C_hist_data.csv")
 
 
 class Status:
-    def __init__(self):
+    def __init__(self) -> None:
         self.message = ""
 
 
 class Success(Status):
-    def __init__(self):
+    def __init__(self) -> None:
         self.message = "SUCCESS"
 
 
 class Failure(Status):
-    def __init__(self):
+    def __init__(self) -> None:
         self.message = "FAILURE"
 
 
 class Stocks:
 
-    def __init__(self):
-        def GenPath(ticker) -> str:
+    def __init__(self) -> None:
+        def GenPath(ticker: str) -> str:
             return "__data_file/{}_hist_data.csv".format(ticker)
         self.portfolio_ = dict([("AAPL", GenPath("AAPL")),
                                 ("C", GenPath("C")),
                                 ("TSLA", GenPath("TSLA"))])
-        self.stock_cache_ = {}
+        self.stock_cache_: Dict[str, pd.DataFrame]
 
-    def GetStock(self, ticker) -> Tuple[Status, pd.DataFrame]:
+    def GetStock(self, ticker: str) -> Tuple[Status, pd.DataFrame]:
         if ticker not in self.portfolio_:
             return (Failure(), pd.Dataframe())
         stock = self.portfolio_[ticker]
         if ticker not in self.stock_cache_:
             self.stock_cache_[ticker] = pd.read_csv(stock[1])
-        return self.stock_cache_[ticker]
+        return (Success(), self.stock_cache_[ticker])
 
 
 stock_data = Stocks()
@@ -55,11 +55,11 @@ social_title = "Social"
 # Construction of the sidebar section
 
 
-def GenerateSideBar():
+def GenerateSideBar() -> str:
     sbar.title("ToTheMoon.alpha")
     sbar_user_title = sbar.header("Khabane S. Lekena")
     sbar_user_title = sbar.subheader("Ranking: AA")
-    selected_window = st.sidebar.radio(
+    selected_window: str = st.sidebar.radio(
         "", (home_title, sp_title, social_title))
     fb, tw, insta = sbar.beta_columns(3)
     with fb:
@@ -68,7 +68,7 @@ def GenerateSideBar():
         st.write("Twitter link")
     with insta:
         st.write("Instagram link")
-        return selected_window
+    return selected_window
 
 
 # data = get_data()
@@ -78,7 +78,7 @@ def GenerateSideBar():
 
 # # pbar = st.progress(0)
 # chart = st.line_chart(charted_data)
-lc, mc, rc = st.beta_columns(3)
+# lc, mc, rc = st.beta_columns(3)
 # with lc:
 #     use_lReg = st.checkbox("Use Linear Regression")
 # with mc:
@@ -90,23 +90,29 @@ lc, mc, rc = st.beta_columns(3)
 st.balloons()
 
 
-def RenderHome():
+def RenderHome() -> None:
     def RenderStocksInPortfolioPicker(stocks: Stocks) -> List[Tuple[str, bool]]:
         stock_picker: List[Tuple[str, bool]] = []
         for ticker, _ in stocks.portfolio_.items():
             stock_picker.append((ticker, st.checkbox(ticker)))
         return stock_picker
 
+    def GatherSelectedData(selected_tickers: List[Tuple[str, bool]]) -> pd.DataFrame:
+        pass
+
     data = get_data()
     time_cprice_data = data[["Close"]]  # .set_index("Date")
     charted_data = time_cprice_data
     chart_placeholder = st.empty()
+    stocks_to_show: List[Tuple[str, bool]]
     _1, mc, _2 = st.beta_columns(3)
     with mc:
         # use_lReg = st.checkbox("Use Linear Regression")
         # use_o = st.checkbox("Use Neural Network")
         # use_m = st.checkbox("Use Deep NN")
-        RenderStocksInPortfolio(stock_data)
+        stocks_to_show = RenderStocksInPortfolioPicker(stock_data)
+
+    GatherSelectedData(stocks_to_show)
     st.dataframe(charted_data)
     chart_placeholder.line_chart(charted_data)
 
