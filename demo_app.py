@@ -1,5 +1,5 @@
 import time
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple, Any, Optional
 
 import streamlit as st
 import pandas as pd
@@ -45,7 +45,7 @@ class Stocks:
 
     def GetStock(self, ticker: str) -> Tuple[Status, pd.DataFrame]:
         if ticker not in self.portfolio_:
-            return (Failure(), pd.Dataframe())
+            return (Failure(), pd.DataFrame())
         stock = self.portfolio_[ticker]
         if ticker not in self.stock_cache_:
             self.stock_cache_[ticker] = pd.read_csv(stock)
@@ -116,10 +116,23 @@ def RenderHome() -> None:
     charted_data = GatherSelectedData(stocks_to_show, stock_data)
     st.dataframe(charted_data)
     # prints a table of the closing prices.
-    # chart_placeholder.line_chart(charted_data)
+    chart_placeholder.line_chart(charted_data)
 
     # pbar = st.progress(0)
-# Main Construction
+
+
+def RenderStockPageOne() -> None:
+    def TickerSearcher() -> None:
+        rtn: str = st.text_input("Enter Ticker")
+        status, _ = stock_data.GetStock(rtn)
+        if status == Failure():
+            st.info("Unable to find ticker :(")
+        else:
+            st.success("Found ticker.")
+    TickerSearcher()
+    # st.text()
+
+    # Main Construction
 
 
 selected_window = GenerateSideBar()
@@ -129,6 +142,7 @@ if selected_window == home_title:
     RenderHome()
 elif selected_window == sp_title:
     st.write("Stock Picking")
+    RenderStockPageOne()
 elif selected_window == social_title:
     st.write("Social")
 else:
