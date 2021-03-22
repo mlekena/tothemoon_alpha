@@ -5,6 +5,7 @@ import streamlit as st
 import pandas as pd
 from streamlit import write as wr
 from streamlit import sidebar as sbar
+import itertools
 
 
 @st.cache()  # type: ignore
@@ -122,17 +123,58 @@ def RenderHome() -> None:
 
 
 def RenderStockPageOne() -> None:
-    def TickerSearcher() -> None:
+    def RenderTickerSearcher() -> None:
         rtn: str = st.text_input("Enter Ticker")
+        if len(rtn.strip()) == 0:
+            return
         status, _ = stock_data.GetStock(rtn)
         if status == Failure():
             st.info("Unable to find ticker :(")
         else:
             st.success("Found ticker.")
-    TickerSearcher()
-    # st.text()
+    RenderTickerSearcher()
 
-    # Main Construction
+    def RenderEditorsChoiceStockList() -> None:
+        our_top_stocks_list: List[str] = ["MSFT", "GOOGL",
+                                          "TSLA", "TSM", "C", "CSCO", "AAPL"]
+        st.multiselect("Our Top Stocks", our_top_stocks_list +
+                       our_top_stocks_list)
+
+    RenderEditorsChoiceStockList()
+    ls = list(map(lambda i: "./resources/animal_{}.jpg".format(i), range(0, 5, 1)))
+    print(ls)
+    img_keys = [(img, key) for img, key in zip(
+        map(lambda i: "./resources/animal_{}.jpg".format(i), range(0, 5, 1)), range(4))]
+    images_to_render = []
+
+    def GetRotator(rotated: int):
+        rotator = 1
+        return rotator + rotated
+    rotator = 1
+    for _ in range(3):
+        images_to_render.append(img_keys[rotator])
+        rotator = (rotator + 1 % 4)
+    l, m, r = st.beta_columns(3)
+    with l:
+        rk1 = images_to_render[0]
+        st.image(rk1[0], key=rk1[1])
+        st.button("Explore", key="b1")
+    with m:
+        rk2 = images_to_render[1]
+        st.image(rk2[0], key=rk2[1])
+        st.button("Explore", key="m")
+    with r:
+        rk3 = images_to_render[2]
+        st.image(rk3[0], key=rk3[1])
+        st.button("Explore", key="t")
+    section_button_rotators = st.beta_columns(4)
+    with section_button_rotators[1]:
+        st.button("<")
+    with section_button_rotators[2]:
+        st.button(">")
+# st.text()
+
+# Main Construction
 
 
 selected_window = GenerateSideBar()
