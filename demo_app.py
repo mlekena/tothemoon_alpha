@@ -1,5 +1,6 @@
 import time
 from typing import Dict, List, Tuple, Any, Optional
+import uuid
 
 import streamlit as st
 import pandas as pd
@@ -11,6 +12,10 @@ import itertools
 @st.cache()  # type: ignore
 def get_data() -> pd.DataFrame:
     return pd.read_csv("__data_file/C_hist_data.csv")
+
+
+def GetID() -> int:
+    return uuid.uuid4().int
 
 
 class Status:
@@ -37,7 +42,7 @@ class Stocks:
     def __init__(self) -> None:
         def GenPath(ticker: str) -> str:
             filepath = "__data_file/{}_hist_data.csv".format(ticker)
-            print(filepath)
+            # print(filepath)
             return "__data_file/{}_hist_data.csv".format(ticker)
         self.portfolio_ = dict([("AAPL", GenPath("AAPL")),
                                 ("C", GenPath("C")),
@@ -51,6 +56,28 @@ class Stocks:
         if ticker not in self.stock_cache_:
             self.stock_cache_[ticker] = pd.read_csv(stock)
         return (Success(), self.stock_cache_[ticker])
+
+
+class ResourceHandler(object):
+    def __init__(self, resource_name: str) -> None:
+        self.filepath = "resources/{}".format(resource_name)
+        self.resource: object = None
+
+    def Materialize(self) -> None:
+        raise NotImplementedError
+
+
+class ImageResourceHandler(ResourceHandler):
+    def __init__(self, resource_name: str) -> None:
+        super().__init__(resource_name)
+        # resource = super().resource
+    # TODO(theko): may need to cache this
+
+    def Materialize(self) -> st.image:
+        if self.resource:
+            return self.resource
+        self.resource = st.image
+        return self.resource
 
 
 stock_data = Stocks()
@@ -141,37 +168,82 @@ def RenderStockPageOne() -> None:
                        our_top_stocks_list)
 
     RenderEditorsChoiceStockList()
-    ls = list(map(lambda i: "./resources/animal_{}.jpg".format(i), range(0, 5, 1)))
-    print(ls)
-    img_keys = [(img, key) for img, key in zip(
-        map(lambda i: "./resources/animal_{}.jpg".format(i), range(0, 5, 1)), range(4))]
-    images_to_render = []
 
-    def GetRotator(rotated: int):
-        rotator = 1
-        return rotator + rotated
-    rotator = 1
-    for _ in range(3):
-        images_to_render.append(img_keys[rotator])
-        rotator = (rotator + 1 % 4)
-    l, m, r = st.beta_columns(3)
-    with l:
-        rk1 = images_to_render[0]
-        st.image(rk1[0], key=rk1[1])
-        st.button("Explore", key="b1")
-    with m:
-        rk2 = images_to_render[1]
-        st.image(rk2[0], key=rk2[1])
-        st.button("Explore", key="m")
-    with r:
-        rk3 = images_to_render[2]
-        st.image(rk3[0], key=rk3[1])
-        st.button("Explore", key="t")
-    section_button_rotators = st.beta_columns(4)
-    with section_button_rotators[1]:
-        st.button("<")
-    with section_button_rotators[2]:
-        st.button(">")
+    def RenderStockThemeCarousel() -> None:
+        def GetCarouselMembers() -> List[ImageResourceHandler]:
+            # returns List[Tuple[ThemeImage, ThemeExploreButton]]
+            return [ImageResourceHandler("animal_1"),
+                    ImageResourceHandler("animal_2"),
+                    ImageResourceHandler("animal_3"),
+                    ImageResourceHandler("animal_4")]
+
+        def GetCurrentCarouselWindow(num_on_display) -> int:  # type: ignore
+            # returns number between 1 and 3
+            windows = num_on_display//3
+            # # if num_on_display doesnt divide cleanly by 3 then we need one more window
+            # # for the remaining items
+            # windows = windows + 1 if (num_on_display/3) * \
+            #     2 != windows else windows
+
+            rtn: int = st.slider(
+                "Slide through our stock categories", min_value=0, max_value=windows)
+            return rtn
+
+        def RenderImgAndButton(c_members) -> None:
+            for cm, layer in zip(c_members, st.beta_columns(3)):
+                with layer:
+                    cm.Materialize()
+                    # TODO Materialize some images and complete the flow
+                    # TODO then generate stock names for the category
+                    # img_uri = cm[0]
+                    # member_category = cm[1]
+                    # # st.image(img_uri)
+                    # img_uri.Get()
+
+        carousel_members = GetCarouselMembers()
+        if len(carousel_members) > 9:
+            st.warning(
+                "carousel has more than 9 members. Trimming down to first 9.")
+            carousel_members = carousel_members[:9]
+        c_window = GetCurrentCarouselWindow(len(carousel_members))
+        # sliding_window = range(c_window * 3 - 3, c_window * 3)
+        carousel_member_limit = 3
+        RenderImgAndButton(
+            carousel_members[c_window: c_window + carousel_member_limit])
+
+    RenderStockThemeCarousel()
+    # ls = list(map(lambda i: "./resources/animal_{}.jpg".format(i), range(0, 5, 1)))
+    # print(ls)
+    # img_keys = [(img, key) for img, key in zip(
+    #     map(lambda i: "./resources/animal_{}.jpg".format(i), range(0, 5, 1)), range(4))]
+    # images_to_render = []
+
+    # section_button_rotators = st.beta_columns(4)
+    # n = 0
+    # with section_button_rotators[1]:
+    #     if st.button("<"):
+    #         n += 1
+    # with section_button_rotators[2]:
+    #     st.button(">")
+    # rotator = 1
+    # for _ in range(3):
+    #     images_to_render.append(img_keys[rotator])
+    #     rotator = (rotator + 1 % 4)
+    # l, m, r = st.beta_columns(3)
+    # with l:
+    #     rk1 = images_to_render[0]
+    #     st.image(rk1[0], key=rk1[1])
+    #     st.button("Explore", key="b1")
+    # with m:
+    #     rk2 = images_to_render[1]
+    #     st.image(rk2[0], key=rk2[1])
+    #     st.button("Explore", key="m")
+    # with r:
+    #     rk3 = images_to_render[2]
+    #     st.image(rk3[0], key=rk3[1])
+    #     st.button("Explore", key="t")
+
+    # st.write(n)
 # st.text()
 
 # Main Construction
