@@ -1,5 +1,5 @@
 import time
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Dict, List, Tuple, Any, Optional, Callable
 import uuid
 
 import streamlit as st
@@ -60,7 +60,7 @@ class Stocks:
 
 class ResourceHandler(object):
     def __init__(self, resource_name: str) -> None:
-        self.filepath = "resources/{}".format(resource_name)
+        self.filepath = "resources/{}.jpg".format(resource_name)
         self.resource: object = None
 
     def Materialize(self) -> None:
@@ -70,14 +70,34 @@ class ResourceHandler(object):
 class ImageResourceHandler(ResourceHandler):
     def __init__(self, resource_name: str) -> None:
         super().__init__(resource_name)
-        # resource = super().resource
     # TODO(theko): may need to cache this
 
     def Materialize(self) -> st.image:
         if self.resource:
             return self.resource
-        self.resource = st.image
+        self.resource = st.image(self.filepath)
         return self.resource
+
+
+class OnTriggerPresenter(object):
+    def __init__(self, trigger_label: str, call: Callable[[], None]) -> None:
+        self.id = GetID()
+        self.trigger_label = trigger_label
+        self.trigger_button: bool = False
+        # Expecting function performing rendering
+        self.to_trigger = call
+
+    def RenderTrigger(self) -> None:
+        # (label=self.trigger_label, key=self.id)
+        self.trigger_button = st.button(self.trigger_label)
+        if self.trigger_button:
+            print("%s flipped" % self.trigger_label)
+
+    def RenderIfTriggered(self) -> None:
+        print("trigger check")
+        if self.trigger_button == True:
+            print("triggering %s" % self.trigger_label)
+            self.to_trigger()
 
 
 stock_data = Stocks()
@@ -150,6 +170,9 @@ def RenderHome() -> None:
 
 
 def RenderStockPageOne() -> None:
+    def RenderCategory() -> None:
+        pass
+
     def RenderTickerSearcher() -> None:
         rtn: str = st.text_input("Enter Ticker")
         if len(rtn.strip()) == 0:
@@ -170,46 +193,40 @@ def RenderStockPageOne() -> None:
     RenderEditorsChoiceStockList()
 
     def RenderStockThemeCarousel() -> None:
-        def GetCarouselMembers() -> List[ImageResourceHandler]:
+        def GetCarouselMembers() -> List[Tuple[ImageResourceHandler, OnTriggerPresenter]]:
             # returns List[Tuple[ThemeImage, ThemeExploreButton]]
-            return [ImageResourceHandler("animal_1"),
-                    ImageResourceHandler("animal_2"),
-                    ImageResourceHandler("animal_3"),
-                    ImageResourceHandler("animal_4")]
+            triggered_resource = list(
+                map(lambda i: OnTriggerPresenter("%d" %
+                                                 i, RenderCategory), range(4)))
+            return list(zip([ImageResourceHandler("animal_1"),
+                             ImageResourceHandler("animal_2"),
+                             ImageResourceHandler("animal_3"),
+                             ImageResourceHandler("animal_4")], triggered_resource))
 
-        def GetCurrentCarouselWindow(num_on_display) -> int:  # type: ignore
+        def GetCurrentCarouselWindow(num_on_display: int) -> int:
             # returns number between 1 and 3
             windows = num_on_display//3
-            # # if num_on_display doesnt divide cleanly by 3 then we need one more window
-            # # for the remaining items
-            # windows = windows + 1 if (num_on_display/3) * \
-            #     2 != windows else windows
 
             rtn: int = st.slider(
                 "Slide through our stock categories", min_value=0, max_value=windows)
             return rtn
 
-        def RenderImgAndButton(c_members) -> None:
-            for cm, layer in zip(c_members, st.beta_columns(3)):
+        def RenderImgAndButton(c_members: List[Tuple[ImageResourceHandler, OnTriggerPresenter]]) -> None:
+            for resource, layer in zip(c_members, st.beta_columns(3)):
                 with layer:
-                    cm.Materialize()
-                    # TODO Materialize some images and complete the flow
-                    # TODO then generate stock names for the category
-                    # img_uri = cm[0]
-                    # member_category = cm[1]
-                    # # st.image(img_uri)
-                    # img_uri.Get()
+                    resource[0].Materialize()
+                    resource[1].RenderTrigger()
 
         carousel_members = GetCarouselMembers()
-        if len(carousel_members) > 9:
-            st.warning(
-                "carousel has more than 9 members. Trimming down to first 9.")
-            carousel_members = carousel_members[:9]
+
         c_window = GetCurrentCarouselWindow(len(carousel_members))
-        # sliding_window = range(c_window * 3 - 3, c_window * 3)
+
         carousel_member_limit = 3
         RenderImgAndButton(
             carousel_members[c_window: c_window + carousel_member_limit])
+
+        for _, trigger in carousel_members:
+            trigger.RenderIfTriggered()
 
     RenderStockThemeCarousel()
     # ls = list(map(lambda i: "./resources/animal_{}.jpg".format(i), range(0, 5, 1)))
