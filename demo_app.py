@@ -1,6 +1,7 @@
 import time
 from typing import Dict, List, Tuple, Any, Optional, Callable
 import uuid
+import json
 
 import streamlit as st
 import pandas as pd
@@ -100,6 +101,28 @@ class OnTriggerPresenter(object):
             self.to_trigger()
 
 
+class StockCategoryHandler(object):
+    def __init__(self, tickers: List[str] = [],
+                 img_resource: str = "",
+                 title: str = "Ticker",
+                 description: str = "Desciption."):
+        self.tickers = tickers
+        self.img_resource = img_resource
+        self.title = title
+        self.description = description
+
+
+def ReadCategoryFromJsonFile(filepath: str) -> StockCategoryHandler:
+    with open(filepath) as json_file:
+        category_data = json.load(json_file)
+        return StockCategoryHandler(
+            tickers=category_data["tickers"],
+            img_resource=category_data["img_resource"],
+            title=category_data["title"],
+            description=category_data["description"]
+        )
+
+
 stock_data = Stocks()
 st.title("ToTheMoon.alpha")
 home_title = "Home"
@@ -171,7 +194,15 @@ def RenderHome() -> None:
 
 def RenderStockPageOne() -> None:
     def RenderCategory() -> None:
-        pass
+        image_panel, stock_panel = st.beta_columns(2)
+        with image_panel:
+            st.image("resources/animal_1.jpg")
+        with stock_panel:
+            st.multiselect("Select Category Stocks", [1, 2, 3, 4, 5, 6])
+            st.title("sector 1")
+            st.write("brief information about the sector")
+        with st.beta_expander("Category in-depth"):
+            st.write("Potentially display sector tracked performance??")
 
     def RenderTickerSearcher() -> None:
         rtn: str = st.text_input("Enter Ticker")
@@ -217,18 +248,19 @@ def RenderStockPageOne() -> None:
                     resource[0].Materialize()
                     resource[1].RenderTrigger()
 
-        carousel_members = GetCarouselMembers()
+    #     carousel_members = GetCarouselMembers()
 
-        c_window = GetCurrentCarouselWindow(len(carousel_members))
+    #     c_window = GetCurrentCarouselWindow(len(carousel_members))
 
-        carousel_member_limit = 3
-        RenderImgAndButton(
-            carousel_members[c_window: c_window + carousel_member_limit])
+    #     carousel_member_limit = 3
+    #     RenderImgAndButton(
+    #         carousel_members[c_window: c_window + carousel_member_limit])
 
-        for _, trigger in carousel_members:
-            trigger.RenderIfTriggered()
+    #     for _, trigger in carousel_members:
+    #         trigger.RenderIfTriggered()
 
-    RenderStockThemeCarousel()
+    # RenderStockThemeCarousel()
+    RenderCategory()
     # ls = list(map(lambda i: "./resources/animal_{}.jpg".format(i), range(0, 5, 1)))
     # print(ls)
     # img_keys = [(img, key) for img, key in zip(
