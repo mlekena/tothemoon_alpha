@@ -1,7 +1,10 @@
 import time
-from typing import Dict, List, Tuple, Any, Optional, Callable
+from typing import Dict, List, Tuple, Any, Optional, Callable, Set
 import uuid
 import json
+import os
+import sys
+import pathlib
 
 import streamlit as st
 import pandas as pd
@@ -102,26 +105,32 @@ class OnTriggerPresenter(object):
 
 
 class StockCategoryHandler(object):
-    def __init__(self, tickers: List[str] = [],
-                 img_resource: str = "",
+    def __init__(self, id: str, tickers: List[str] = [],
+                 image_path: str = "",
                  title: str = "Ticker",
                  description: str = "Desciption."):
+        self.id = id
         self.tickers = tickers
-        self.img_resource = img_resource
+        self.image_path = image_path
         self.title = title
         self.description = description
 
 
-def ReadCategoryFromJsonFile(filepath: str) -> StockCategoryHandler:
+def ReadCategoryFromJsonFile(filepath: pathlib.Path) -> StockCategoryHandler:
     with open(filepath) as json_file:
         category_data = json.load(json_file)
         return StockCategoryHandler(
+            id=category_data["id"],
             tickers=category_data["tickers"],
-            img_resource=category_data["img_resource"],
+            image_path=category_data["image_path"],
             title=category_data["title"],
             description=category_data["description"]
         )
 
+
+CATEGORY_DATA_PATH = "resources/category_info/"
+CATEGORIES = [ReadCategoryFromJsonFile(f)
+              for f in pathlib.Path(CATEGORY_DATA_PATH).iterdir() if f.suffix == '.json']
 
 stock_data = Stocks()
 st.title("ToTheMoon.alpha")
@@ -171,7 +180,6 @@ def RenderHome() -> None:
             else:
                 raise Exception("Failed to get ticker: {}".format(ticker))
             column = "{}_close".format(ticker)
-            # rtn_df.insert(rtn_df.shape[1], column, data[["Close"]])
             rtn_df[column] = pd.Series(data["Close"])
         return rtn_df
 
@@ -203,6 +211,22 @@ def RenderStockPageOne() -> None:
             st.write("brief information about the sector")
         with st.beta_expander("Category in-depth"):
             st.write("Potentially display sector tracked performance??")
+
+    def InflateCategory(category_data: StockCategoryHandler) -> List[str]:
+        selected_stocks: List[str] = []
+        with st.beta_container():
+            image_panel, stock_panel = st.beta_columns(2)
+            with image_panel:
+                st.image(category_data.image_path)
+            with stock_panel:
+                selected_stocks = st.multiselect("Select Category Stocks",
+                                                 category_data.tickers, key=category_data.id)
+                st.title(category_data.title)
+                st.write(category_data.description)
+            with st.beta_expander("Category in-depth"):
+                st.write("In-depth breackdown of %s" % category_data.title)
+            st.write("")  # add padding between InflateCategory's
+        return selected_stocks
 
     def RenderTickerSearcher() -> None:
         rtn: str = st.text_input("Enter Ticker")
@@ -261,6 +285,12 @@ def RenderStockPageOne() -> None:
 
     # RenderStockThemeCarousel()
     RenderCategory()
+    gathered_stock_selection: Set[str] = set()
+    for category in CATEGORIES:
+        gathered_stock_selection = gathered_stock_selection | {
+            s for s in InflateCategory(category)}
+    print()
+    print(gathered_stock_selection)
     # ls = list(map(lambda i: "./resources/animal_{}.jpg".format(i), range(0, 5, 1)))
     # print(ls)
     # img_keys = [(img, key) for img, key in zip(

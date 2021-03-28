@@ -4,3 +4,9 @@ Static Analysis
         Using typing in codebase
     turning on --strict peforms static analysis on save. This
     will produce more secure code based on my past experience.
+
+
+Resource Generation
+    run scripts:
+        python setup_stock_categories.py
+        python sample_data_fetcher.py

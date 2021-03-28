@@ -14,8 +14,7 @@ def wrap(id, title, tickers, image_path, description):  # type: ignore
     return {"id": id, "title": title, "tickers": tickers, "image_path": image_path, "description": description}
 
 
-json_bundles = []
-json_bundles.append(wrap(  # type: ignore
+json_bundles = [wrap(  # type: ignore
     id="green_energy_sector",
     title="Green Energy Sector",
     tickers=["Plug Power Inc", "Enphase ENergy Inc",
@@ -23,7 +22,16 @@ json_bundles.append(wrap(  # type: ignore
              "Siemens Gamesa Renewable Ene"],
     image_path="resources/energy_category_thumbnail.jpg",
     description="No one likes polluting the earth, but our energy addition is hard to break. Clean"
-))
+), wrap(  # type: ignore
+    id="green_energy_sector_2",
+    title="Green Energy Sector",
+    tickers=["Plug Power Inc", "Enphase ENergy Inc",
+             "Verbund AG", "DAQO New Energy ADR Representing",
+             "Siemens Gamesa Renewable Ene"],
+    image_path="resources/energy_category_thumbnail.jpg",
+    description="No one likes polluting the earth, but our energy addition is hard to break. Clean"
+)
+]
 
 CATEGORY_DATA_LOCATION = "resources/category_info/"
 
