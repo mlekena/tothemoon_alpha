@@ -1,5 +1,5 @@
 import time
-from typing import Dict, List, Tuple, Any, Optional, Callable, Set
+from typing import Dict, List, Tuple, Any, Optional, Callable, Set, NewType
 import uuid
 import json
 import os
@@ -18,8 +18,57 @@ class UnifiedContext(object):
         self.user = user
         self.page_cache = page_cache
 
-    def RegisterPage(self, page_id: str) -> None:
-        pass
+    # String type used to get forward usage of type names
+    # https://stackoverflow.com/questions/33533148/how-do-i-type-hint-a-method-with-the-type-of-the-enclosing-class
+    def currentPageManager(self, page_manager: 'PageManager') -> None:
+        self.current_page_manager = page_manager
+
+
+class Page(object):
+    def __init__(self, id: str, call: Callable[[UnifiedContext], Any]) -> None:
+        self.id = id
+        self.render_call = call
+
+
+class PageManager(object):
+
+    def __init__(self, page_id: str):
+        self.NO_PAGES = -1
+        self.page_id = page_id
+        self.pages: Dict[str, Page] = {}
+        self.current_page: int = self.NO_PAGES
+        self.page_order: List[str] = []
+
+    def RegisterPage(self, new_page_renderer: Page) -> None:
+        assert(new_page_renderer.id not in self.pages
+               ), "Attempting to register duplicated ID"
+        self.pages[new_page_renderer.id] = new_page_renderer
+        if self.current_page == self.NO_PAGES:
+            self.current_page = 0
+        self.page_order.append(new_page_renderer.id)
+
+    def RegisterPages(self, pages: List[Page]) -> None:
+        """
+            Page order dictated by sequence they were added.
+        """
+        if not pages:
+            return None
+        for page in pages:
+            self.RegisterPage(page)
+
+    def RenderCurrentPage(self, context: UnifiedContext) -> None:
+        if self.current_page == self.NO_PAGES:
+            st.error(
+                "PageManagerError: Attempting to render empty pages sequence.")
+        self.pages[self.page_order[self.current_page]].render_call(context)
+
+    def NextPage(self) -> None:
+        assert(self.current_page + 1 < len(self.pages)
+               ), "Not enough pages to go next too."
+        self.current_page += 1
+
+    def PreviousPage(self) -> None:
+        self.current_page = self.current_page - 1 if self.current_page - 1 >= 0 else 0
 
 
 UNIFIED_CONTEXT_CACHE_LOCATION = "__ucc/"
@@ -228,7 +277,7 @@ def RenderHome() -> None:
     chart_placeholder.line_chart(charted_data)
 
 
-def RenderStockPageOne() -> None:
+def RenderStockPageOne(ctx: UnifiedContext) -> None:
     def RenderCategory() -> None:
         image_panel, stock_panel = st.beta_columns(2)
         with image_panel:
@@ -287,13 +336,11 @@ def RenderStockPageOne() -> None:
                              ImageResourceHandler("animal_3"),
                              ImageResourceHandler("animal_4")], triggered_resource))
 
-    RenderCategory()
+    # RenderCategory()
     gathered_stock_selection: Set[str] = set()
     for category in CATEGORIES:
         gathered_stock_selection = gathered_stock_selection | {
             s for s in InflateCategory(category)}
-    print()
-    print(gathered_stock_selection)
     GoToStockAllocation.beta_container()
     if not gathered_stock_selection:
         with GoToStockAllocation:
@@ -307,15 +354,24 @@ def RenderStockPageOne() -> None:
                 # RenderStockAllocation()
                 pass
 
+
                 # Main Construction
 selected_window = GenerateSideBar()
 ctx = LoadUnifiedContext()
+stock_pick_pm = PageManager("stock_picker")
+stock_pick_page_one = Page("stock_pick_page_one", RenderStockPageOne)
+# TODO assert for duplicate page ids in pagemanager
+stock_pick_page_two = Page("stock_pick_page_two", RenderStockPageOne)
+stock_pick_pm.RegisterPages([stock_pick_page_one,
+                             stock_pick_page_two])
 if selected_window == home_title:
     st.write("Home page")
     RenderHome()
 elif selected_window == sp_title:
     st.write("Stock Picking")
-    RenderStockPageOne()
+    # RenderStockPageOne()
+    context.currentPageManager(stock_pick_pm)
+    stock_pick_pm.RenderCurrentPage(ctx)
 elif selected_window == social_title:
     st.write("Social")
 else:
