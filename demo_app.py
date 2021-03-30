@@ -12,6 +12,26 @@ from streamlit import write as wr
 from streamlit import sidebar as sbar
 import itertools
 
+# Implement this system in a MVC fashion where the pages are the views and
+# the controller is the unifiedcontext system.
+
+# When creating Pages, when passed into a Page manager, a reference to the pagemanager
+# is passed into the pages so they can specifically dictate which page available in the page
+# manager should the the controller (unifiedcontext) render next.
+
+# From there, its just a matter of extending the available pages
+#     add caching
+#     then we flesh out the stock data pipeline
+#     analytics engine and integration testing.
+
+# Cross page information passing is done within the context of a PageManager
+# Cross pagemanager information passing perhaps done by direct storage of user data
+#  in the DB??
+
+# A PageManager knows what sequence it is currently in
+# but the controller knows which pageManager it is intending to ask to
+# perform rendering
+
 
 class UnifiedContext(object):
     def __init__(self, user: str, page_cache: Dict[str, Any]) -> None:
@@ -20,7 +40,8 @@ class UnifiedContext(object):
 
     # String type used to get forward usage of type names
     # https://stackoverflow.com/questions/33533148/how-do-i-type-hint-a-method-with-the-type-of-the-enclosing-class
-    def currentPageManager(self, page_manager: 'PageManager') -> None:
+    def SetCurrentPageManager(self, page_manager: 'PageManager') -> None:
+        # TODO Think about how to ensure this gets called before each render
         self.current_page_manager = page_manager
 
 
@@ -28,6 +49,9 @@ class Page(object):
     def __init__(self, id: str, call: Callable[[UnifiedContext], Any]) -> None:
         self.id = id
         self.render_call = call
+
+    def RenderPage(self, ctx: UnifiedContext) -> None:
+        raise NotImplementedError
 
 
 class PageManager(object):
@@ -242,7 +266,7 @@ def GenerateSideBar() -> str:
 st.balloons()
 
 
-def RenderHome() -> None:
+def RenderHome(ctx: UnifiedContext) -> None:
     def RenderStocksInPortfolioPicker(stocks: Stocks) -> List[Tuple[str, bool]]:
         stock_picker: List[Tuple[str, bool]] = []
         for ticker, _ in stocks.portfolio_.items():
@@ -355,9 +379,11 @@ def RenderStockPageOne(ctx: UnifiedContext) -> None:
                 pass
 
 
-                # Main Construction
+# Main Construction
 selected_window = GenerateSideBar()
 ctx = LoadUnifiedContext()
+home_pm = PageManager("home")
+home_page = Page("home_page", RenderHome)
 stock_pick_pm = PageManager("stock_picker")
 stock_pick_page_one = Page("stock_pick_page_one", RenderStockPageOne)
 # TODO assert for duplicate page ids in pagemanager
@@ -366,11 +392,11 @@ stock_pick_pm.RegisterPages([stock_pick_page_one,
                              stock_pick_page_two])
 if selected_window == home_title:
     st.write("Home page")
-    RenderHome()
+    RenderHome(ctx)
 elif selected_window == sp_title:
     st.write("Stock Picking")
     # RenderStockPageOne()
-    context.currentPageManager(stock_pick_pm)
+    ctx.SetCurrentPageManager(stock_pick_pm)
     stock_pick_pm.RenderCurrentPage(ctx)
 elif selected_window == social_title:
     st.write("Social")
