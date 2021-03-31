@@ -13,7 +13,7 @@ from streamlit import sidebar as sbar
 import itertools
 
 # Implement this system in a MVC fashion where the pages are the views and
-# the controller is the unifiedcontext system.
+# the controller is the unified context system.
 
 # When creating Pages, when passed into a Page manager, a reference to the pagemanager
 # is passed into the pages so they can specifically dictate which page available in the page
@@ -56,20 +56,20 @@ class Page(object):
 
 class PageManager(object):
 
-    def __init__(self, page_id: str):
-        self.NO_PAGES = -1
-        self.page_id = page_id
+    def __init__(self, page_manager_id: str):
+        self.NO_PAGES = ""
+        self.page_manager_id = page_manager_id
         self.pages: Dict[str, Page] = {}
-        self.current_page: int = self.NO_PAGES
-        self.page_order: List[str] = []
+        self.current_page: str = self.NO_PAGES
+        # self.page_order: List[str] = []
 
     def RegisterPage(self, new_page_renderer: Page) -> None:
         assert(new_page_renderer.id not in self.pages
                ), "Attempting to register duplicated ID"
         self.pages[new_page_renderer.id] = new_page_renderer
         if self.current_page == self.NO_PAGES:
-            self.current_page = 0
-        self.page_order.append(new_page_renderer.id)
+            self.current_page = new_page_renderer.id
+        # self.page_order.append(new_page_renderer.id)
 
     def RegisterPages(self, pages: List[Page]) -> None:
         """
@@ -84,15 +84,21 @@ class PageManager(object):
         if self.current_page == self.NO_PAGES:
             st.error(
                 "PageManagerError: Attempting to render empty pages sequence.")
-        self.pages[self.page_order[self.current_page]].render_call(context)
+        self.pages[self.current_page].RenderPage(context)
 
-    def NextPage(self) -> None:
-        assert(self.current_page + 1 < len(self.pages)
-               ), "Not enough pages to go next too."
-        self.current_page += 1
+    def GotoPage(self, page_id: str) -> None:
+        if page_id in self.pages:
+            raise Exception("Attempting to head to Page {} PageManager {}".format(
+                page_id, self.page_manager_id))
+        self.current_page = page_id
 
-    def PreviousPage(self) -> None:
-        self.current_page = self.current_page - 1 if self.current_page - 1 >= 0 else 0
+    # def NextPage(self) -> None:
+    #     assert(self.current_page + 1 < len(self.pages)
+    #            ), "Not enough pages to go next too."
+    #     self.current_page += 1
+
+    # def PreviousPage(self) -> None:
+    #     self.current_page = self.current_page - 1 if self.current_page - 1 >= 0 else 0
 
 
 UNIFIED_CONTEXT_CACHE_LOCATION = "__ucc/"
@@ -266,133 +272,156 @@ def GenerateSideBar() -> str:
 st.balloons()
 
 
-def RenderHome(ctx: UnifiedContext) -> None:
-    def RenderStocksInPortfolioPicker(stocks: Stocks) -> List[Tuple[str, bool]]:
-        stock_picker: List[Tuple[str, bool]] = []
-        for ticker, _ in stocks.portfolio_.items():
-            stock_picker.append((ticker, st.checkbox(ticker)))
-        return stock_picker
+# class Page(object):
+#     def __init__(self, id: str, call: Callable[[UnifiedContext], Any]) -> None:
+#         self.id = id
+#         self.render_call = call
 
-    def GatherSelectedData(selected_tickers: List[Tuple[str, bool]],
-                           stocks: Stocks) -> pd.DataFrame:
-        rtn_df = pd.DataFrame()
-        for ticker, selected in selected_tickers:
-            if not selected:
-                continue
-            status_and_data = stocks.GetStock(ticker)
-            print(type(status_and_data[0]))
-            if status_and_data[0] == Success():
-                data = status_and_data[1]
-            else:
-                raise Exception("Failed to get ticker: {}".format(ticker))
-            column = "{}_close".format(ticker)
-            rtn_df[column] = pd.Series(data["Close"])
-        return rtn_df
-
-    chart_placeholder = st.empty()
-    stocks_to_show: List[Tuple[str, bool]]
-    _1, mc, _2 = st.beta_columns(3)
-    with mc:
-        stocks_to_show = RenderStocksInPortfolioPicker(stock_data)
-
-    charted_data = GatherSelectedData(stocks_to_show, stock_data)
-    st.dataframe(charted_data)
-    # prints a table of the closing prices.
-    chart_placeholder.line_chart(charted_data)
+#     def RenderPage(self, ctx: UnifiedContext) -> None:
+#         raise NotImplementedError
 
 
-def RenderStockPageOne(ctx: UnifiedContext) -> None:
-    def RenderCategory() -> None:
-        image_panel, stock_panel = st.beta_columns(2)
-        with image_panel:
-            st.image("resources/animal_1.jpg")
-        with stock_panel:
-            st.multiselect("Select Category Stocks", [1, 2, 3, 4, 5, 6])
-            st.title("sector 1")
-            st.write("brief information about the sector")
-        with st.beta_expander("Category in-depth"):
-            st.write("Potentially display sector tracked performance??")
+class HomePage(Page):
 
-    def InflateCategory(category_data: StockCategoryHandler) -> List[str]:
-        selected_stocks: List[str] = []
-        with st.beta_container():
+    def __init__(self, id: str,
+                 page_manager: PageManager):
+        super().__init__(id, lambda d: d)
+        self.page_manager_ = page_manager
+
+    def RenderPage(self, context: UnifiedContext) -> None:
+        def __RenderStocksInPortfolioPicker(stocks: Stocks) -> List[Tuple[str, bool]]:
+            stock_picker: List[Tuple[str, bool]] = []
+            for ticker, _ in stocks.portfolio_.items():
+                stock_picker.append((ticker, st.checkbox(ticker)))
+            return stock_picker
+
+        def __GatherSelectedData(selected_tickers: List[Tuple[str, bool]],
+                                 stocks: Stocks) -> pd.DataFrame:
+            rtn_df = pd.DataFrame()
+            for ticker, selected in selected_tickers:
+                if not selected:
+                    continue
+                status_and_data = stocks.GetStock(ticker)
+                print(type(status_and_data[0]))
+                if status_and_data[0] == Success():
+                    data = status_and_data[1]
+                else:
+                    raise Exception("Failed to get ticker: {}".format(ticker))
+                column = "{}_close".format(ticker)
+                rtn_df[column] = pd.Series(data["Close"])
+            return rtn_df
+
+        chart_placeholder = st.empty()
+        stocks_to_show: List[Tuple[str, bool]]
+        _1, mc, _2 = st.beta_columns(3)
+        with mc:
+            stocks_to_show = __RenderStocksInPortfolioPicker(stock_data)
+
+        charted_data = __GatherSelectedData(stocks_to_show, stock_data)
+        # st.dataframe(charted_data)
+        # prints a table of the closing prices.
+        chart_placeholder.line_chart(charted_data)
+
+
+class StockPickerPage(Page):
+
+    def __init__(self, id: str, page_manager: PageManager):
+        super().__init__(id, lambda d: d)
+        self.page_manager_ = page_manager
+
+    def RenderPage(self, context: UnifiedContext) -> None:
+        # def RenderStockPageOne(ctx: UnifiedContext) -> None:
+        def __RenderCategory() -> None:
             image_panel, stock_panel = st.beta_columns(2)
             with image_panel:
-                st.image(category_data.image_path)
+                st.image("resources/animal_1.jpg")
             with stock_panel:
-                selected_stocks = st.multiselect("Select Category Stocks",
-                                                 category_data.tickers, key=category_data.id)
-                st.title(category_data.title)
-                st.write(category_data.description)
+                st.multiselect("Select Category Stocks", [1, 2, 3, 4, 5, 6])
+                st.title("sector 1")
+                st.write("brief information about the sector")
             with st.beta_expander("Category in-depth"):
-                st.write("In-depth breackdown of %s" % category_data.title)
-            st.write("")  # add padding between InflateCategory's
-        return selected_stocks
+                st.write("Potentially display sector tracked performance??")
 
-    def RenderTickerSearcher() -> None:
-        rtn: str = st.text_input("Enter Ticker")
-        if len(rtn.strip()) == 0:
-            return
-        status, _ = stock_data.GetStock(rtn)
-        if status == Failure():
-            st.info("Unable to find ticker :(")
+        def __InflateCategory(category_data: StockCategoryHandler) -> List[str]:
+            selected_stocks: List[str] = []
+            with st.beta_container():
+                image_panel, stock_panel = st.beta_columns(2)
+                with image_panel:
+                    st.image(category_data.image_path)
+                with stock_panel:
+                    selected_stocks = st.multiselect("Select Category Stocks",
+                                                     category_data.tickers, key=category_data.id)
+                    st.title(category_data.title)
+                    st.write(category_data.description)
+                with st.beta_expander("Category in-depth"):
+                    st.write("In-depth breackdown of %s" % category_data.title)
+                st.write("")  # add padding between __InflateCategory's
+            return selected_stocks
+
+        def __RenderTickerSearcher() -> None:
+            rtn: str = st.text_input("Enter Ticker")
+            if len(rtn.strip()) == 0:
+                return
+            status, _ = stock_data.GetStock(rtn)
+            if status == Failure():
+                st.info("Unable to find ticker :(")
+            else:
+                st.success("Found ticker.")
+
+        GoToStockAllocation = st.empty()
+        __RenderTickerSearcher()
+
+        def __RenderEditorsChoiceStockList() -> None:
+            our_top_stocks_list: List[str] = ["MSFT", "GOOGL",
+                                              "TSLA", "TSM", "C", "CSCO", "AAPL"]
+            st.multiselect("Our Top Stocks", our_top_stocks_list +
+                           our_top_stocks_list)
+
+        __RenderEditorsChoiceStockList()
+
+        # def RenderStockThemeCarousel() -> None:
+        #     def GetCarouselMembers() -> List[Tuple[ImageResourceHandler, OnTriggerPresenter]]:
+        #         triggered_resource = list(
+        #             map(lambda i: OnTriggerPresenter("%d" %
+        #                                              i, __RenderCategory), range(4)))
+        #         return list(zip([ImageResourceHandler("animal_1"),
+        #                          ImageResourceHandler("animal_2"),
+        #                          ImageResourceHandler("animal_3"),
+        #                          ImageResourceHandler("animal_4")], triggered_resource))
+
+        gathered_stock_selection: Set[str] = set()
+        for category in CATEGORIES:
+            gathered_stock_selection = gathered_stock_selection | {
+                s for s in __InflateCategory(category)}
+        GoToStockAllocation.beta_container()
+        if not gathered_stock_selection:
+            with GoToStockAllocation:
+                next = st.button("Next", key="NoStocksSelected")
+                if next:
+                    st.warning(
+                        "Please find and select some stocks before allocation.")
         else:
-            st.success("Found ticker.")
-
-    GoToStockAllocation = st.empty()
-    RenderTickerSearcher()
-
-    def RenderEditorsChoiceStockList() -> None:
-        our_top_stocks_list: List[str] = ["MSFT", "GOOGL",
-                                          "TSLA", "TSM", "C", "CSCO", "AAPL"]
-        st.multiselect("Our Top Stocks", our_top_stocks_list +
-                       our_top_stocks_list)
-
-    RenderEditorsChoiceStockList()
-
-    def RenderStockThemeCarousel() -> None:
-        def GetCarouselMembers() -> List[Tuple[ImageResourceHandler, OnTriggerPresenter]]:
-            triggered_resource = list(
-                map(lambda i: OnTriggerPresenter("%d" %
-                                                 i, RenderCategory), range(4)))
-            return list(zip([ImageResourceHandler("animal_1"),
-                             ImageResourceHandler("animal_2"),
-                             ImageResourceHandler("animal_3"),
-                             ImageResourceHandler("animal_4")], triggered_resource))
-
-    # RenderCategory()
-    gathered_stock_selection: Set[str] = set()
-    for category in CATEGORIES:
-        gathered_stock_selection = gathered_stock_selection | {
-            s for s in InflateCategory(category)}
-    GoToStockAllocation.beta_container()
-    if not gathered_stock_selection:
-        with GoToStockAllocation:
-            next = st.button("Next", key="NoStocksSelected")
-            if next:
-                st.warning(
-                    "Please find and select some stocks before allocation.")
-    else:
-        with GoToStockAllocation:
-            if st.button("Next", key="StocksSelected"):
-                # RenderStockAllocation()
-                pass
+            with GoToStockAllocation:
+                if st.button("Next", key="StocksSelected"):
+                    # RenderStockAllocation()
+                    pass
 
 
 # Main Construction
 selected_window = GenerateSideBar()
 ctx = LoadUnifiedContext()
-home_pm = PageManager("home")
-home_page = Page("home_page", RenderHome)
+home_pm = PageManager("HomeManager")
+home_pm.RegisterPage(HomePage("home_page", home_pm))
+
 stock_pick_pm = PageManager("stock_picker")
-stock_pick_page_one = Page("stock_pick_page_one", RenderStockPageOne)
 # TODO assert for duplicate page ids in pagemanager
-stock_pick_page_two = Page("stock_pick_page_two", RenderStockPageOne)
-stock_pick_pm.RegisterPages([stock_pick_page_one,
-                             stock_pick_page_two])
+stock_pick_pm.RegisterPages([StockPickerPage("stock_pick_page_one", stock_pick_pm),
+                             StockPickerPage("stock_pick_page_two", stock_pick_pm)])
+# stock_pick_pm.RegisterPages([stock_pick_page_one,
+#                              stock_pick_page_two])
 if selected_window == home_title:
     st.write("Home page")
-    RenderHome(ctx)
+    home_pm.RenderCurrentPage(ctx)
 elif selected_window == sp_title:
     st.write("Stock Picking")
     # RenderStockPageOne()
