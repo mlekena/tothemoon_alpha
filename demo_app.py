@@ -5,19 +5,23 @@ import json
 import os
 import sys
 import pathlib
+import itertools
+import functools
 
 import streamlit as st
 import pandas as pd
 from streamlit import write as wr
 from streamlit import sidebar as sbar
-import itertools
-
 # Implement this system in a MVC fashion where the pages are the views and
 # the controller is the unified context system.
 
-# When creating Pages, when passed into a Page manager, a reference to the pagemanager
+# DONE When creating Pages, when passed into a Page manager, a reference to the pagemanager
 # is passed into the pages so they can specifically dictate which page available in the page
 # manager should the the controller (unifiedcontext) render next.
+
+# Next!
+# Need to create a page and test out the goingToNextPage and infomration passing`
+
 
 # From there, its just a matter of extending the available pages
 #     add caching
@@ -40,9 +44,27 @@ class UnifiedContext(object):
 
     # String type used to get forward usage of type names
     # https://stackoverflow.com/questions/33533148/how-do-i-type-hint-a-method-with-the-type-of-the-enclosing-class
-    def SetCurrentPageManager(self, page_manager: 'PageManager') -> None:
+    def SetCurrentPageManager(self, page_manager: "PageManager") -> None:
         # TODO Think about how to ensure this gets called before each render
         self.current_page_manager = page_manager
+
+    def RestorePageState(self, page_manager: "PageManager") -> None:
+        print("Restore State")
+
+    def StorePageState(self, page_manager: "PageManager") -> None:
+        print("Store State")
+
+
+def CacheWrap(context: UnifiedContext):  # type: ignore
+    def __CacheWrap(func):  # type: ignore
+        @functools.wraps(func)
+        def cache_around_wrapper(*args, **kwargs) -> None:  # type: ignore
+            assert(isinstance(args[0], PageManager))
+            context.RestorePageState(args[0])
+            func(*args, **kwargs)
+            context.StorePageState(args[0])
+        return cache_around_wrapper
+    return __CacheWrap
 
 
 class Page(object):
@@ -87,7 +109,7 @@ class PageManager(object):
         self.pages[self.current_page].RenderPage(context)
 
     def GotoPage(self, page_id: str) -> None:
-        if page_id in self.pages:
+        if page_id not in self.pages:
             raise Exception("Attempting to head to Page {} PageManager {}".format(
                 page_id, self.page_manager_id))
         self.current_page = page_id
@@ -288,6 +310,7 @@ class HomePage(Page):
         super().__init__(id, lambda d: d)
         self.page_manager_ = page_manager
 
+    @CacheWrap(context)
     def RenderPage(self, context: UnifiedContext) -> None:
         def __RenderStocksInPortfolioPicker(stocks: Stocks) -> List[Tuple[str, bool]]:
             stock_picker: List[Tuple[str, bool]] = []
@@ -321,6 +344,16 @@ class HomePage(Page):
         # st.dataframe(charted_data)
         # prints a table of the closing prices.
         chart_placeholder.line_chart(charted_data)
+
+
+class StockAllocationPage(Page):
+
+    def __init__(self, id: str, page_manager: PageManager):
+        super().__init__(id, lambda d: d)
+        self.page_manager = page_manager
+
+    def RenderPage(self, context: UnifiedContext) -> None:
+        st.header("Stock Allocations")
 
 
 class StockPickerPage(Page):
@@ -403,8 +436,7 @@ class StockPickerPage(Page):
         else:
             with GoToStockAllocation:
                 if st.button("Next", key="StocksSelected"):
-                    # RenderStockAllocation()
-                    pass
+                    self.page_manager_.GotoPage("stock_allocation_page")
 
 
 # Main Construction
@@ -416,7 +448,9 @@ home_pm.RegisterPage(HomePage("home_page", home_pm))
 stock_pick_pm = PageManager("stock_picker")
 # TODO assert for duplicate page ids in pagemanager
 stock_pick_pm.RegisterPages([StockPickerPage("stock_pick_page_one", stock_pick_pm),
-                             StockPickerPage("stock_pick_page_two", stock_pick_pm)])
+                             StockPickerPage(
+                                 "stock_pick_page_two", stock_pick_pm),
+                             StockAllocationPage("stock_allocation_page", stock_pick_pm)])
 # stock_pick_pm.RegisterPages([stock_pick_page_one,
 #                              stock_pick_page_two])
 if selected_window == home_title:
@@ -425,7 +459,7 @@ if selected_window == home_title:
 elif selected_window == sp_title:
     st.write("Stock Picking")
     # RenderStockPageOne()
-    ctx.SetCurrentPageManager(stock_pick_pm)
+    # ctx.SetCurrentPageManager(stock_pick_pm)
     stock_pick_pm.RenderCurrentPage(ctx)
 elif selected_window == social_title:
     st.write("Social")
