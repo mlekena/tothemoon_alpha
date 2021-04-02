@@ -48,29 +48,23 @@ class UnifiedContext(object):
         # TODO Think about how to ensure this gets called before each render
         self.current_page_manager = page_manager
 
-    def RestorePageState(self, page_manager: "PageManager") -> None:
+    def RestorePageState(self, page_manager_id: str) -> CacheType:
         print("Restore State")
+        return CacheType()
 
-    def StorePageState(self, page_manager: "PageManager") -> None:
+    def StorePageState(self, page_manager_id: str, state: CacheType) -> None:
         print("Store State")
 
 
-def CacheWrap(context: UnifiedContext):  # type: ignore
-    def __CacheWrap(func):  # type: ignore
-        @functools.wraps(func)
-        def cache_around_wrapper(*args, **kwargs) -> None:  # type: ignore
-            assert(isinstance(args[0], PageManager))
-            context.RestorePageState(args[0])
-            func(*args, **kwargs)
-            context.StorePageState(args[0])
-        return cache_around_wrapper
-    return __CacheWrap
+CacheType = Dict[str, Any]
 
 
 class Page(object):
-    def __init__(self, id: str, call: Callable[[UnifiedContext], Any]) -> None:
+
+    def __init__(self, id: str, page_manager: "PageManager") -> None:
         self.id = id
-        self.render_call = call
+        self.page_manager = page_manager
+        self.public_cache: CacheType = {}
 
     def RenderPage(self, ctx: UnifiedContext) -> None:
         raise NotImplementedError
@@ -78,12 +72,27 @@ class Page(object):
 
 class PageManager(object):
 
-    def __init__(self, page_manager_id: str):
+    def __init__(self, page_manager_id: str, context: UnifiedContext):
         self.NO_PAGES = ""
         self.page_manager_id = page_manager_id
         self.pages: Dict[str, Page] = {}
         self.current_page: str = self.NO_PAGES
+        # self.context = context
+        self.cache: CacheType = context.RestorePageState(self.page_manager_id)
         # self.page_order: List[str] = []
+
+    def GetManagedCache(self) -> Dict[str, CacheType]:
+        return {self.page_manager_id: self.cache}
+
+    def GetInCache(self, var_name, type_hint: str = "str") -> Any:
+        if var_name not in self.cache:
+            st.warning(
+                "Attempting to get variable: {} but non was found".format(var_name))
+        # TODO use if statement for casting to different hinted types
+        return self.cache.get(var_name, "")
+
+    def SetInCache(self, var_name: str, value: Any) -> None:
+        self.cache[var_name] = value
 
     def RegisterPage(self, new_page_renderer: Page) -> None:
         assert(new_page_renderer.id not in self.pages
@@ -307,10 +316,9 @@ class HomePage(Page):
 
     def __init__(self, id: str,
                  page_manager: PageManager):
-        super().__init__(id, lambda d: d)
-        self.page_manager_ = page_manager
+        super().__init__(id, page_manager)
+        # self.page_manager_ = page_manager
 
-    @CacheWrap(context)
     def RenderPage(self, context: UnifiedContext) -> None:
         def __RenderStocksInPortfolioPicker(stocks: Stocks) -> List[Tuple[str, bool]]:
             stock_picker: List[Tuple[str, bool]] = []
@@ -334,6 +342,8 @@ class HomePage(Page):
                 rtn_df[column] = pd.Series(data["Close"])
             return rtn_df
 
+        self.public_cache["val"] = 99
+
         chart_placeholder = st.empty()
         stocks_to_show: List[Tuple[str, bool]]
         _1, mc, _2 = st.beta_columns(3)
@@ -349,8 +359,7 @@ class HomePage(Page):
 class StockAllocationPage(Page):
 
     def __init__(self, id: str, page_manager: PageManager):
-        super().__init__(id, lambda d: d)
-        self.page_manager = page_manager
+        super().__init__(id, page_manager)
 
     def RenderPage(self, context: UnifiedContext) -> None:
         st.header("Stock Allocations")
@@ -359,8 +368,7 @@ class StockAllocationPage(Page):
 class StockPickerPage(Page):
 
     def __init__(self, id: str, page_manager: PageManager):
-        super().__init__(id, lambda d: d)
-        self.page_manager_ = page_manager
+        super().__init__(id, page_manager)
 
     def RenderPage(self, context: UnifiedContext) -> None:
         # def RenderStockPageOne(ctx: UnifiedContext) -> None:
@@ -442,10 +450,10 @@ class StockPickerPage(Page):
 # Main Construction
 selected_window = GenerateSideBar()
 ctx = LoadUnifiedContext()
-home_pm = PageManager("HomeManager")
+home_pm = PageManager("HomeManager", ctx)
 home_pm.RegisterPage(HomePage("home_page", home_pm))
 
-stock_pick_pm = PageManager("stock_picker")
+stock_pick_pm = PageManager("StockPickerManager", ctx)
 # TODO assert for duplicate page ids in pagemanager
 stock_pick_pm.RegisterPages([StockPickerPage("stock_pick_page_one", stock_pick_pm),
                              StockPickerPage(
