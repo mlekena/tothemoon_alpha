@@ -10,8 +10,13 @@ import functools
 
 import streamlit as st
 import pandas as pd
+from sqlalchemy import create_engine
 from streamlit import write as wr
-from streamlit import sidebar as sbar
+import psycopg2
+
+# from streamlit import sidebar as sbar
+# from streamlit.report_thread import get_report_ctx
+
 # Implement this system in a MVC fashion where the pages are the views and
 # the controller is the unified context system.
 
@@ -35,6 +40,39 @@ from streamlit import sidebar as sbar
 # A PageManager knows what sequence it is currently in
 # but the controller knows which pageManager it is intending to ask to
 # perform rendering
+TEXT_T = "text"
+INT_T = "int"
+DOUBLE_T = "doube"
+CACHE_SETTINGS = {
+    "Stockpickingpage": {
+        "_id_": "_id_stocking_picking",
+        "col": [
+            ("ticker": TEXT_T),
+            ("allocation": DOUBLE_T),
+        ],
+    },
+}
+PGUSER = config("DEVPOSTGRESUSER")
+PGPASS = config("DEVPOSTGRESPASSWORD")
+
+
+class Cache(object):
+    """ designed to be a lazy evaluate"""
+    __instance: "Cache" = None
+    __db_engine = create_engine(
+        "postgresql://postgres:1234@localhost:5432/postgres")
+
+    def __init__(self):
+        if Cache.__instance != None:
+            Cache.__instance = self
+        else:
+            raise RuntimeError(
+                "Attempting to create multiple Cache objects. Use get_instance(..) function.")
+
+    def get_instance(self):
+        if not Cache.__instance:
+            Cache()
+        return Cache.__instance
 
 
 class UnifiedContext(object):
