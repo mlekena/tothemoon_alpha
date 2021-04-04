@@ -6,7 +6,10 @@ import os
 import sys
 import pathlib
 import itertools
-import functools
+from functools import reduce
+
+from __future__ import annotations
+
 
 import streamlit as st
 import pandas as pd
@@ -60,57 +63,63 @@ PGPASS = config("DEVPOSTGRESPASSWORD")
 CacheType = Dict[str, Any]
 
 
+class Cachex(object):
+    """ designed to be a lazy evaluate"""
+    __instance: "Cachex" = None  # type: ignore
+    __db_engine = create_engine(
+        'postgresql:x//%s:%s@localhost:5432/postgres' % (PGUSER, PGPASS))
+
+    def __init__(self) -> None:
+        if Cachex.__instance != None:
+            Cachex.__instance = self
+        else:
+            raise RuntimeError(
+                "Attempting to create multiple Cachex objects. Use get_instance(..) function.")
+
+    def get_instance(self) -> "Cachex":
+        if not Cachex.__instance:
+            Cachex()
+        return Cachex.__instance
+
+    def read_state_df(self, session_id: str) -> pd.DataFrame:
+        try:
+            df = pd.read_sql_table(session_id, con=Cachex.__db_engine)
+        except:
+            df = pd.DataFrame([])
+        return df
+
+    def write_state_df(self, df: pd.DataFrame, session_id: str) -> None:
+        df.to_sql('%s' % (session_id), Cachex.__db_engine, index=False,
+                  if_exists='replace', chunksize=1000)
+
+    def write_state(column, value, engine, session_id) -> None:  # type: ignore
+        Cachex.__db_engine.execute("UPDATE %s SET %s='%s'" %
+                                   (session_id, column, value))
+
+    def read_state(column, engine, session_id) -> Any:  # type: ignore
+        state_var = Cachex.__db_engine.execute(
+            "SELECT %s FROM %s" % (column, session_id))
+        state_var = state_var.first()[0]
+        return state_var
+
+    def InitCache(self, table_id: str, fields_and_types: List[Tuple[str, str]]) -> None:
+        print("Creating table {}".format(table_id))
+        Cachex.__db_engine.execute(
+            "CREATE TABLE IF NOT EXISTS %s %s" %
+            (table_id, reduce(lambda lft, rht:
+                              "{} {} {}".format(lft, rht[0], rht[1]),
+                              fields_and_types, "")))
+
+
 class UnifiedContext(object):
-
-    class Cache(object):
-        """ designed to be a lazy evaluate"""
-        __instance: Optional["Cache"] = None
-        __db_engine = create_engine(
-            'postgresql:x//%s:%s@localhost:5432/postgres' % (PGUSER, PGPASS))
-
-        def __init__(self) -> None:
-            if Cache.__instance != None:
-                Cache.__instance = self
-            else:
-                raise RuntimeError(
-                    "Attempting to create multiple Cache objects. Use get_instance(..) function.")
-
-        def get_instance(self) -> "Cache":
-            if not Cache.__instance:
-                Cache()
-            return Cache.__instance
-
-        def read_state_df(self, session_id: str) -> pd.DataFrame:
-            try:
-                df = pd.read_sql_table(session_id, con=Cache.__db_engine)
-            except:
-                df = pd.DataFrame([])
-            return df
-
-        def write_state_df(self, df: pd.DataFrame, session_id: str) -> None:
-            df.to_sql('%s' % (session_id), Cache.__db_engine, index=False,
-                      if_exists='replace', chunksize=1000)
-
-        def write_state(column, value, engine, session_id):
-            engine.execute("UPDATE %s SET %s='%s'" %
-                           (session_id, column, value))
-
-        def read_state(column, engine, session_id):
-            state_var = engine.execute(
-                "SELECT %s FROM %s" % (column, session_id))
-            state_var = state_var.first()[0]
-            return state_var
-
-        def InitCache(self, table_id: string, fields_and_types: List[str, str]):
-            raise NotImplementedError
 
     cache_schema = [("current_page", TEXT_T)]
 
     def __init__(self, user: str) -> None:
         self.user = user
         # self.page_cache = page_cache
-        self.cache = Cache()
-        self.user: pd.DataFrame = None
+        self.cache = Cachex()
+        self.user_data: pd.DataFrame = pd.DataFrame([])
         self.unified_context_id = "_id_UnifiedContextCoreCache"
         self.cache.InitCache(self.unified_context_id,
                              UnifiedContext.cache_schema)
@@ -130,7 +139,8 @@ class UnifiedContext(object):
     def StorePageState(self, page_manager_id: str, state: CacheType) -> None:
         print("Store State")
 
-    def CheckCacheExists(self, page_manager_id) -> bool:
+    def CheckCacheExists(self, page_manager_id: str) -> bool:
+        pass
 
 
 class Page(object):
@@ -154,7 +164,7 @@ class PageManager(object):
         self.pages: Dict[str, Page] = {}
         self.current_page: str = self.NO_PAGES
         self.cache_df: pd.DataFrame = None
-        context.InitCache(self.cache_id, PageManager.cache_schema)
+        # context.InitCache(self.cache_id, PageManager.cache_schema)
         # self.context = context
         # self.cache: CacheType = context.RestorePageState(self.page_manager_id)
         # self.page_order: List[str] = []
@@ -237,7 +247,7 @@ def StoreUnifiedContext(ctx: UnifiedContext) -> bool:
     return False
 
 
-@st.cache()  # type: ignore
+@ st.cache()  # type: ignore
 def get_data() -> pd.DataFrame:
     return pd.read_csv("__data_file/C_hist_data.csv")
 
