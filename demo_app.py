@@ -13,9 +13,10 @@ import pandas as pd
 from sqlalchemy import create_engine
 from streamlit import write as wr
 import psycopg2
+from decouple import config
 
-# from streamlit import sidebar as sbar
-# from streamlit.report_thread import get_report_ctx
+from streamlit import sidebar as sbar
+from streamlit.report_thread import get_report_ctx
 
 # Implement this system in a MVC fashion where the pages are the views and
 # the controller is the unified context system.
@@ -42,13 +43,13 @@ import psycopg2
 # perform rendering
 TEXT_T = "text"
 INT_T = "int"
-DOUBLE_T = "doube"
+FLOAT_T = "float"
 CACHE_SETTINGS = {
     "Stockpickingpage": {
         "_id_": "_id_stocking_picking",
         "col": [
-            ("ticker": TEXT_T),
-            ("allocation": DOUBLE_T),
+            ("ticker", TEXT_T),
+            ("allocation", FLOAT_T),
         ],
     },
 }
@@ -56,45 +57,80 @@ PGUSER = config("DEVPOSTGRESUSER")
 PGPASS = config("DEVPOSTGRESPASSWORD")
 
 
-class Cache(object):
-    """ designed to be a lazy evaluate"""
-    __instance: "Cache" = None
-    __db_engine = create_engine(
-        "postgresql://postgres:1234@localhost:5432/postgres")
-
-    def __init__(self):
-        if Cache.__instance != None:
-            Cache.__instance = self
-        else:
-            raise RuntimeError(
-                "Attempting to create multiple Cache objects. Use get_instance(..) function.")
-
-    def get_instance(self):
-        if not Cache.__instance:
-            Cache()
-        return Cache.__instance
+CacheType = Dict[str, Any]
 
 
 class UnifiedContext(object):
-    def __init__(self, user: str, page_cache: Dict[str, Any]) -> None:
-        self.user = user
-        self.page_cache = page_cache
 
+    class Cache(object):
+        """ designed to be a lazy evaluate"""
+        __instance: Optional["Cache"] = None
+        __db_engine = create_engine(
+            'postgresql:x//%s:%s@localhost:5432/postgres' % (PGUSER, PGPASS))
+
+        def __init__(self) -> None:
+            if Cache.__instance != None:
+                Cache.__instance = self
+            else:
+                raise RuntimeError(
+                    "Attempting to create multiple Cache objects. Use get_instance(..) function.")
+
+        def get_instance(self) -> "Cache":
+            if not Cache.__instance:
+                Cache()
+            return Cache.__instance
+
+        def read_state_df(self, session_id: str) -> pd.DataFrame:
+            try:
+                df = pd.read_sql_table(session_id, con=Cache.__db_engine)
+            except:
+                df = pd.DataFrame([])
+            return df
+
+        def write_state_df(self, df: pd.DataFrame, session_id: str) -> None:
+            df.to_sql('%s' % (session_id), Cache.__db_engine, index=False,
+                      if_exists='replace', chunksize=1000)
+
+        def write_state(column, value, engine, session_id):
+            engine.execute("UPDATE %s SET %s='%s'" %
+                           (session_id, column, value))
+
+        def read_state(column, engine, session_id):
+            state_var = engine.execute(
+                "SELECT %s FROM %s" % (column, session_id))
+            state_var = state_var.first()[0]
+            return state_var
+
+        def InitCache(self, table_id: string, fields_and_types: List[str, str]):
+            raise NotImplementedError
+
+    cache_schema = [("current_page", TEXT_T)]
+
+    def __init__(self, user: str) -> None:
+        self.user = user
+        # self.page_cache = page_cache
+        self.cache = Cache()
+        self.user: pd.DataFrame = None
+        self.unified_context_id = "_id_UnifiedContextCoreCache"
+        self.cache.InitCache(self.unified_context_id,
+                             UnifiedContext.cache_schema)
+        self.app_state: pd.DataFrame = self.cache.read_state_df(
+            self.unified_context_id)
     # String type used to get forward usage of type names
     # https://stackoverflow.com/questions/33533148/how-do-i-type-hint-a-method-with-the-type-of-the-enclosing-class
+
     def SetCurrentPageManager(self, page_manager: "PageManager") -> None:
         # TODO Think about how to ensure this gets called before each render
         self.current_page_manager = page_manager
 
     def RestorePageState(self, page_manager_id: str) -> CacheType:
         print("Restore State")
-        return CacheType()
+        return {}
 
     def StorePageState(self, page_manager_id: str, state: CacheType) -> None:
         print("Store State")
 
-
-CacheType = Dict[str, Any]
+    def CheckCacheExists(self, page_manager_id) -> bool:
 
 
 class Page(object):
@@ -109,28 +145,32 @@ class Page(object):
 
 
 class PageManager(object):
+    __cache_schema = [("ticker", TEXT_T), ("allocation", FLOAT_T)]
 
     def __init__(self, page_manager_id: str, context: UnifiedContext):
         self.NO_PAGES = ""
         self.page_manager_id = page_manager_id
+        self.cache_id = "_id_%s" % self.page_manager_id
         self.pages: Dict[str, Page] = {}
         self.current_page: str = self.NO_PAGES
+        self.cache_df: pd.DataFrame = None
+        context.InitCache(self.cache_id, PageManager.cache_schema)
         # self.context = context
-        self.cache: CacheType = context.RestorePageState(self.page_manager_id)
+        # self.cache: CacheType = context.RestorePageState(self.page_manager_id)
         # self.page_order: List[str] = []
 
-    def GetManagedCache(self) -> Dict[str, CacheType]:
-        return {self.page_manager_id: self.cache}
+    # def GetManagedCache(self) -> Dict[str, CacheType]:
+    #     return (self.page_manager_id: self.cache)
 
-    def GetInCache(self, var_name, type_hint: str = "str") -> Any:
-        if var_name not in self.cache:
-            st.warning(
-                "Attempting to get variable: {} but non was found".format(var_name))
-        # TODO use if statement for casting to different hinted types
-        return self.cache.get(var_name, "")
+    # def GetInCache(self, var_name: str, type_hint: str = "str") -> Any:
+    #     if var_name not in self.cache:
+    #         st.warning(
+    #             "Attempting to get variable: {} but non was found".format(var_name))
+    #     # TODO use if statement for casting to different hinted types
+    #     return self.cache.get(var_name, "")
 
-    def SetInCache(self, var_name: str, value: Any) -> None:
-        self.cache[var_name] = value
+    # def SetInCache(self, var_name: str, value: Any) -> None:
+    #     self.cache[var_name] = value
 
     def RegisterPage(self, new_page_renderer: Page) -> None:
         assert(new_page_renderer.id not in self.pages
@@ -149,11 +189,13 @@ class PageManager(object):
         for page in pages:
             self.RegisterPage(page)
 
-    def RenderCurrentPage(self, context: UnifiedContext) -> None:
+    def RenderCurrentPage(self) -> None:
         if self.current_page == self.NO_PAGES:
             st.error(
                 "PageManagerError: Attempting to render empty pages sequence.")
-        self.pages[self.current_page].RenderPage(context)
+        self.cache_df = self.context.read_state_df(self.cache_id)
+        self.pages[self.current_page].RenderPage(self.cache_df)
+        self.context.write_state_df(self.cache_df, self.cache_id)
 
     def GotoPage(self, page_id: str) -> None:
         if page_id not in self.pages:
