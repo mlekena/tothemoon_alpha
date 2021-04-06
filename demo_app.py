@@ -67,10 +67,10 @@ class Cachex(object):
     """ designed to be a lazy evaluate"""
     __instance: "Cachex" = None  # type: ignore
     __db_engine = create_engine(
-        'postgresql:x//%s:%s@localhost:5432/postgres' % (PGUSER, PGPASS))
+        'postgresql://%s:%s@localhost:5432/postgres' % (PGUSER, PGPASS))
 
     def __init__(self) -> None:
-        if Cachex.__instance != None:
+        if Cachex.__instance == None:
             Cachex.__instance = self
         else:
             raise RuntimeError(
@@ -104,7 +104,8 @@ class Cachex(object):
         return state_var
 
     def InitCache(self, table_id: str, fields_and_types: List[Tuple[str, str]]) -> None:
-        print("Creating table {}".format(table_id))
+        print("Creating table {} and returning early.".format(table_id))
+        return
         Cachex.__db_engine.execute(
             "CREATE TABLE IF NOT EXISTS %s %s" %
             (table_id, reduce(lambda lft, rht:
@@ -222,17 +223,18 @@ UNIFIED_CONTEXT_CACHE_LOCATION = "__ucc/"
 
 
 def LoadUnifiedContext() -> UnifiedContext:
-    ucc = os.path.join(UNIFIED_CONTEXT_CACHE_LOCATION, "theko.json")
-    if not os.path.exists(UNIFIED_CONTEXT_CACHE_LOCATION):
-        return UnifiedContext(user="theko")
-        # os.mkdir(UNIFIED_CONTEXT_CACHE_LOCATION)
-    with open(ucc, 'r') as uccfile:
-        uccjson = json.load(uccfile)
-        return UnifiedContext(user="saved_user")
+    return UnifiedContext(user="Theko")
+    # ucc = os.path.join(UNIFIED_CONTEXT_CACHE_LOCATION, "theko.json")
+    # if not os.path.exists(UNIFIED_CONTEXT_CACHE_LOCATION):
+    #     return UnifiedContext(user="theko")
+    #     # os.mkdir(UNIFIED_CONTEXT_CACHE_LOCATION)
+    # with open(ucc, 'r') as uccfile:
+    #     uccjson = json.load(uccfile)
+    #     return UnifiedContext(user="saved_user")
 
 
 def StoreUnifiedContext(ctx: UnifiedContext) -> bool:
-    raise NotImplementedError
+    pass
 
 
 @st.cache()  # type: ignore
