@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import time
 from typing import Dict, List, Tuple, Any, Optional, Callable, Set, NewType
 import uuid
@@ -7,8 +9,6 @@ import sys
 import pathlib
 import itertools
 from functools import reduce
-
-from __future__ import annotations
 
 
 import streamlit as st
@@ -92,11 +92,12 @@ class Cachex(object):
         df.to_sql('%s' % (session_id), Cachex.__db_engine, index=False,
                   if_exists='replace', chunksize=1000)
 
-    def write_state(column, value, engine, session_id) -> None:  # type: ignore
+# TODO remove unused engine parameter
+    def write_state(column, value, session_id) -> None:  # type: ignore
         Cachex.__db_engine.execute("UPDATE %s SET %s='%s'" %
                                    (session_id, column, value))
 
-    def read_state(column, engine, session_id) -> Any:  # type: ignore
+    def read_state(column, session_id) -> Any:  # type: ignore
         state_var = Cachex.__db_engine.execute(
             "SELECT %s FROM %s" % (column, session_id))
         state_var = state_var.first()[0]
@@ -132,11 +133,11 @@ class UnifiedContext(object):
         # TODO Think about how to ensure this gets called before each render
         self.current_page_manager = page_manager
 
-    def RestorePageState(self, page_manager_id: str) -> CacheType:
+    def RestorePageState(self, page_manager_id: str) -> pd.DataFrame:
         print("Restore State")
         return {}
 
-    def StorePageState(self, page_manager_id: str, state: CacheType) -> None:
+    def StorePageState(self, state: pd.DataFrame, page_manager_id: str) -> None:
         print("Store State")
 
     def CheckCacheExists(self, page_manager_id: str) -> bool:
@@ -165,7 +166,7 @@ class PageManager(object):
         self.current_page: str = self.NO_PAGES
         self.cache_df: pd.DataFrame = None
         # context.InitCache(self.cache_id, PageManager.cache_schema)
-        # self.context = context
+        self.context = context
         # self.cache: CacheType = context.RestorePageState(self.page_manager_id)
         # self.page_order: List[str] = []
 
@@ -203,9 +204,9 @@ class PageManager(object):
         if self.current_page == self.NO_PAGES:
             st.error(
                 "PageManagerError: Attempting to render empty pages sequence.")
-        self.cache_df = self.context.read_state_df(self.cache_id)
+        cache_df = self.context.RestorePageState(self.cache_id)
         self.pages[self.current_page].RenderPage(self.cache_df)
-        self.context.write_state_df(self.cache_df, self.cache_id)
+        self.context.StorePageState(self.cache_df, self.cache_id)
 
     def GotoPage(self, page_id: str) -> None:
         if page_id not in self.pages:
@@ -213,13 +214,8 @@ class PageManager(object):
                 page_id, self.page_manager_id))
         self.current_page = page_id
 
-    # def NextPage(self) -> None:
-    #     assert(self.current_page + 1 < len(self.pages)
-    #            ), "Not enough pages to go next too."
-    #     self.current_page += 1
-
-    # def PreviousPage(self) -> None:
-    #     self.current_page = self.current_page - 1 if self.current_page - 1 >= 0 else 0
+    def UpdateUser(self) -> None:
+        raise NotImplementedError
 
 
 UNIFIED_CONTEXT_CACHE_LOCATION = "__ucc/"
@@ -228,26 +224,18 @@ UNIFIED_CONTEXT_CACHE_LOCATION = "__ucc/"
 def LoadUnifiedContext() -> UnifiedContext:
     ucc = os.path.join(UNIFIED_CONTEXT_CACHE_LOCATION, "theko.json")
     if not os.path.exists(UNIFIED_CONTEXT_CACHE_LOCATION):
-        return UnifiedContext(user="theko", page_cache={})
+        return UnifiedContext(user="theko")
         # os.mkdir(UNIFIED_CONTEXT_CACHE_LOCATION)
     with open(ucc, 'r') as uccfile:
         uccjson = json.load(uccfile)
-        return UnifiedContext(user=uccjson["user"],
-                              page_cache=uccjson["page_cache"])
+        return UnifiedContext(user="saved_user")
 
 
 def StoreUnifiedContext(ctx: UnifiedContext) -> bool:
-    if not os.path.exists(UNIFIED_CONTEXT_CACHE_LOCATION):
-        os.mkdir(UNIFIED_CONTEXT_CACHE_LOCATION)
-    ucc = os.path.join(UNIFIED_CONTEXT_CACHE_LOCATION,
-                       "{}.json".format(ctx.user))
-    with open(ucc, "w") as uccfile:
-        json.dump({"user": ctx.user, "page_cache": ctx.page_cache}, uccfile)
-        return True
-    return False
+    raise NotImplementedError
 
 
-@ st.cache()  # type: ignore
+@st.cache()  # type: ignore
 def get_data() -> pd.DataFrame:
     return pd.read_csv("__data_file/C_hist_data.csv")
 
@@ -458,7 +446,7 @@ class StockAllocationPage(Page):
 class StockPickerPage(Page):
 
     def __init__(self, id: str, page_manager: PageManager):
-        super().__init__(id, page_manager)
+        Page.__init__(self, id, page_manager)
 
     def RenderPage(self, context: UnifiedContext) -> None:
         # def RenderStockPageOne(ctx: UnifiedContext) -> None:
@@ -510,16 +498,6 @@ class StockPickerPage(Page):
 
         __RenderEditorsChoiceStockList()
 
-        # def RenderStockThemeCarousel() -> None:
-        #     def GetCarouselMembers() -> List[Tuple[ImageResourceHandler, OnTriggerPresenter]]:
-        #         triggered_resource = list(
-        #             map(lambda i: OnTriggerPresenter("%d" %
-        #                                              i, __RenderCategory), range(4)))
-        #         return list(zip([ImageResourceHandler("animal_1"),
-        #                          ImageResourceHandler("animal_2"),
-        #                          ImageResourceHandler("animal_3"),
-        #                          ImageResourceHandler("animal_4")], triggered_resource))
-
         gathered_stock_selection: Set[str] = set()
         for category in CATEGORIES:
             gathered_stock_selection = gathered_stock_selection | {
@@ -534,7 +512,7 @@ class StockPickerPage(Page):
         else:
             with GoToStockAllocation:
                 if st.button("Next", key="StocksSelected"):
-                    self.page_manager_.GotoPage("stock_allocation_page")
+                    self.page_manager.GotoPage("stock_allocation_page")
 
 
 # Main Construction
@@ -551,14 +529,17 @@ stock_pick_pm.RegisterPages([StockPickerPage("stock_pick_page_one", stock_pick_p
                              StockAllocationPage("stock_allocation_page", stock_pick_pm)])
 # stock_pick_pm.RegisterPages([stock_pick_page_one,
 #                              stock_pick_page_two])
+# TODO based on the if statement we should set and check the current manager in
+# the context and if a page change happened we should clean data in pages that make sense
+# like stock pick
 if selected_window == home_title:
     st.write("Home page")
-    home_pm.RenderCurrentPage(ctx)
+    home_pm.RenderCurrentPage()
 elif selected_window == sp_title:
     st.write("Stock Picking")
     # RenderStockPageOne()
     # ctx.SetCurrentPageManager(stock_pick_pm)
-    stock_pick_pm.RenderCurrentPage(ctx)
+    stock_pick_pm.RenderCurrentPage()
 elif selected_window == social_title:
     st.write("Social")
 else:
