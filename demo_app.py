@@ -21,6 +21,8 @@ from decouple import config
 from streamlit import sidebar as sbar
 from streamlit.report_thread import get_report_ctx
 
+from src.Cache import Cache, TEXT_T, FLOAT_T
+
 # Implement this system in a MVC fashion where the pages are the views and
 # the controller is the unified context system.
 
@@ -44,83 +46,25 @@ from streamlit.report_thread import get_report_ctx
 # A PageManager knows what sequence it is currently in
 # but the controller knows which pageManager it is intending to ask to
 # perform rendering
-TEXT_T = "text"
-INT_T = "int"
-FLOAT_T = "float"
-CACHE_SETTINGS = {
-    "Stockpickingpage": {
-        "_id_": "_id_stocking_picking",
-        "col": [
-            ("ticker", TEXT_T),
-            ("allocation", FLOAT_T),
-        ],
-    },
-}
-PGUSER = config("DEVPOSTGRESUSER")
-PGPASS = config("DEVPOSTGRESPASSWORD")
 
+# Create a user object that knows how to store its self and load itself as a json
+# object. THen as UCxt is stored or loaded, user data that doesnt change that
+# much can as well. THis will happen alongside user stock information in the table
 
-CacheType = Dict[str, Any]
-
-
-class Cachex(object):
-    """ designed to be a lazy evaluate"""
-    __instance: "Cachex" = None  # type: ignore
-    __db_engine = create_engine(
-        'postgresql://%s:%s@localhost:5432/postgres' % (PGUSER, PGPASS))
-
-    def __init__(self) -> None:
-        if Cachex.__instance == None:
-            Cachex.__instance = self
-        else:
-            raise RuntimeError(
-                "Attempting to create multiple Cachex objects. Use get_instance(..) function.")
-
-    def get_instance(self) -> "Cachex":
-        if not Cachex.__instance:
-            Cachex()
-        return Cachex.__instance
-
-    def read_state_df(self, session_id: str) -> pd.DataFrame:
-        try:
-            df = pd.read_sql_table(session_id, con=Cachex.__db_engine)
-        except:
-            df = pd.DataFrame([])
-        return df
-
-    def write_state_df(self, df: pd.DataFrame, session_id: str) -> None:
-        df.to_sql('%s' % (session_id), Cachex.__db_engine, index=False,
-                  if_exists='replace', chunksize=1000)
-
-# TODO remove unused engine parameter
-    def write_state(column, value, session_id) -> None:  # type: ignore
-        Cachex.__db_engine.execute("UPDATE %s SET %s='%s'" %
-                                   (session_id, column, value))
-
-    def read_state(column, session_id) -> Any:  # type: ignore
-        state_var = Cachex.__db_engine.execute(
-            "SELECT %s FROM %s" % (column, session_id))
-        state_var = state_var.first()[0]
-        return state_var
-
-    def InitCache(self, table_id: str, fields_and_types: List[Tuple[str, str]]) -> None:
-        print("Creating table {} and returning early.".format(table_id))
-        return
-        Cachex.__db_engine.execute(
-            "CREATE TABLE IF NOT EXISTS %s %s" %
-            (table_id, reduce(lambda lft, rht:
-                              "{} {} {}".format(lft, rht[0], rht[1]),
-                              fields_and_types, "")))
+# BUT, all the other users will be stored in the cache as well. So we can simply have a
+# users table and place all the information there. We will still need to know the current
+# context to which we are running such as who the current user is so this might be better
+# served as a json maybe??
 
 
 class UnifiedContext(object):
 
-    cache_schema = [("current_page", TEXT_T)]
+    cache_schema = [("currentPage", TEXT_T)]
 
     def __init__(self, user: str) -> None:
         self.user = user
         # self.page_cache = page_cache
-        self.cache = Cachex()
+        self.cache = Cache.get_instance()
         self.user_data: pd.DataFrame = pd.DataFrame([])
         self.unified_context_id = "_id_UnifiedContextCoreCache"
         self.cache.InitCache(self.unified_context_id,
@@ -150,7 +94,7 @@ class Page(object):
     def __init__(self, id: str, page_manager: "PageManager") -> None:
         self.id = id
         self.page_manager = page_manager
-        self.public_cache: CacheType = {}
+        # self.public_cache: CacheType = {}
 
     def RenderPage(self, ctx: UnifiedContext) -> None:
         raise NotImplementedError
@@ -168,21 +112,6 @@ class PageManager(object):
         self.cache_df: pd.DataFrame = None
         # context.InitCache(self.cache_id, PageManager.cache_schema)
         self.context = context
-        # self.cache: CacheType = context.RestorePageState(self.page_manager_id)
-        # self.page_order: List[str] = []
-
-    # def GetManagedCache(self) -> Dict[str, CacheType]:
-    #     return (self.page_manager_id: self.cache)
-
-    # def GetInCache(self, var_name: str, type_hint: str = "str") -> Any:
-    #     if var_name not in self.cache:
-    #         st.warning(
-    #             "Attempting to get variable: {} but non was found".format(var_name))
-    #     # TODO use if statement for casting to different hinted types
-    #     return self.cache.get(var_name, "")
-
-    # def SetInCache(self, var_name: str, value: Any) -> None:
-    #     self.cache[var_name] = value
 
     def RegisterPage(self, new_page_renderer: Page) -> None:
         assert(new_page_renderer.id not in self.pages
@@ -190,7 +119,6 @@ class PageManager(object):
         self.pages[new_page_renderer.id] = new_page_renderer
         if self.current_page == self.NO_PAGES:
             self.current_page = new_page_renderer.id
-        # self.page_order.append(new_page_renderer.id)
 
     def RegisterPages(self, pages: List[Page]) -> None:
         """
@@ -380,18 +308,6 @@ def GenerateSideBar() -> str:
     return selected_window
 
 
-st.balloons()
-
-
-# class Page(object):
-#     def __init__(self, id: str, call: Callable[[UnifiedContext], Any]) -> None:
-#         self.id = id
-#         self.render_call = call
-
-#     def RenderPage(self, ctx: UnifiedContext) -> None:
-#         raise NotImplementedError
-
-
 class HomePage(Page):
 
     def __init__(self, id: str,
@@ -422,7 +338,7 @@ class HomePage(Page):
                 rtn_df[column] = pd.Series(data["Close"])
             return rtn_df
 
-        self.public_cache["val"] = 99
+        # self.public_cache["val"] = 99
 
         chart_placeholder = st.empty()
         stocks_to_show: List[Tuple[str, bool]]
@@ -548,3 +464,4 @@ else:
     st.error("Unknown section selected!")
 
 StoreUnifiedContext(ctx)
+st.balloons()
