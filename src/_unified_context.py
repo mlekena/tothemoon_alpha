@@ -1,5 +1,6 @@
 from .cache import Cache, TEXT_T, FLOAT_T
 import pandas as pd
+from .pagesystem import PageManager
 
 
 class UnifiedContext(object):
