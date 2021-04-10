@@ -103,9 +103,9 @@ home_pm.RegisterPage(HomePage("home_page", home_pm))
 stock_pick_pm = PageManager("StockPickerManager", ctx)
 # TODO assert for duplicate page ids in pagemanager
 stock_pick_pm.RegisterPages([StockPickerPage("stock_pick_page_one", stock_pick_pm),
-                             StockPickerPage(
-                                 "stock_pick_page_two", stock_pick_pm),
-                             StockAllocationPage("stock_allocation_page", stock_pick_pm)])
+                             StockAllocationPage(
+                                 "stock_allocation_page", stock_pick_pm),
+                             StockAllocationPage("stock_evaluation_page", stock_pick_pm)])
 # stock_pick_pm.RegisterPages([stock_pick_page_one,
 #                              stock_pick_page_two])
 # TODO based on the if statement we should set and check the current manager in
@@ -118,6 +118,7 @@ elif selected_window == sp_title:
     st.write("Stock Picking")
     # RenderStockPageOne()
     # ctx.SetCurrentPageManager(stock_pick_pm)
+    stock_pick_pm.GotoPage("stock_allocation_page")
     stock_pick_pm.RenderCurrentPage()
 elif selected_window == social_title:
     st.write("Social")

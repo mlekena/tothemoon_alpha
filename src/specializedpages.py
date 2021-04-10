@@ -89,6 +89,14 @@ CATEGORIES = [ReadCategoryFromJsonFile(f)
               for f in pathlib.Path(CATEGORY_DATA_PATH).iterdir() if f.suffix == '.json']
 
 
+class StockEvaluationPage(Page):
+    def __init(self, id: str, page_manager: PageManager):
+        super().__init__(id, page_manager)
+
+    def RenderPage(self, context: UnifiedContext):
+        st.header("Evaluate position")
+
+
 class StockAllocationPage(Page):
 
     def __init__(self, id: str, page_manager: PageManager):
@@ -121,6 +129,20 @@ class StockAllocationPage(Page):
         fig.update_traces(hoverinfo="label+percent",
                           marker=dict(line=dict(color="#000000", width=2)))
         allocation_chart.write(fig)
+        _1, center, _2 = st.beta_columns(3)
+        with center:
+            all_allocated = True
+            for ticker, alloc in zip(allocs["tickers"], allocs["allocations"]):
+                if alloc == 0:
+                    all_allocated = False
+                    break
+
+            if st.button("Evaluate Position"):
+                if all_allocated:
+                    self.page_manager.GotoPage("stock_evaluation")
+                else:
+                    st.info(
+                        "Need to provide an allocation to all listed positions before evaluation.")
 
 
 class StockPickerPage(Page):
