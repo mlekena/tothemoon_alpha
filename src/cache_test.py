@@ -47,9 +47,10 @@ class TestCache:
         for row in data_to_update.itertuples():
             # new_row = row["allocation"]
             # new_update.append(new_row)
-            print(row)
+            print(row[1])
         TestCache.cache.write_state_df(data_to_update, TestCache.sp_session_id)
         assert TestCache.cache.read_state(
             "allocation", TestCache.sp_session_id) == 99  # initial value of AAPL
         assert TestCache.cache.read_state_df(
             TestCache.sp_session_id).shape[0] == 3  # initial value of AAPL
+        assert False

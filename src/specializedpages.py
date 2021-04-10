@@ -2,12 +2,15 @@ from .orchastation import Page, PageManager, UnifiedContext
 from .errors import *
 from .stockmon import Stocks
 
+
 import pathlib
 import json
 import pandas as pd
+from decimal import *
 from typing import List, Dict, Tuple, Set
 
 import streamlit as st
+import plotly.graph_objects as go
 from streamlit import sidebar as sbar
 from streamlit.report_thread import get_report_ctx
 
@@ -91,8 +94,33 @@ class StockAllocationPage(Page):
     def __init__(self, id: str, page_manager: PageManager):
         super().__init__(id, page_manager)
 
+    def plot_allocation_chart(allocations: pd.DataFrame) -> go.Figure:
+        pass
+
     def RenderPage(self, context: UnifiedContext) -> None:
+
         st.header("Stock Allocations")
+        cache_df = context.cache.read_state_df(self.page_manager.cache_id)
+        # st.write(cache_df)
+        allocation_chart = st.empty()
+        allocs: Dict[str, List[Decimal]] = {
+            "tickers": list(), "allocations": list()}
+        ticker_idx = 1
+        # alloc_idx = 2
+        for row in cache_df.sort_values(by=["tickers"]).itertuples():
+            allocs["tickers"].append(row[ticker_idx])
+            allocs["allocations"].append(st.number_input(
+                row[ticker_idx], min_value=0))
+
+        # st.write(allocs)
+
+        cache_df["tickers"] = allocs["tickers"]
+        cache_df["allocations"] = allocs["allocations"]
+        fig = go.Figure(data=[go.Pie(
+            labels=cache_df["tickers"], values=cache_df["allocations"], hole=0.2)])
+        fig.update_traces(hoverinfo="label+percent",
+                          marker=dict(line=dict(color="#000000", width=2)))
+        allocation_chart.write(fig)
 
 
 class StockPickerPage(Page):
