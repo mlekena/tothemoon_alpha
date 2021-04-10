@@ -57,15 +57,6 @@ class HomePage(Page):
         chart_placeholder.line_chart(charted_data)
 
 
-class StockAllocationPage(Page):
-
-    def __init__(self, id: str, page_manager: PageManager):
-        super().__init__(id, page_manager)
-
-    def RenderPage(self, context: UnifiedContext) -> None:
-        st.header("Stock Allocations")
-
-
 class StockCategoryHandler(object):
     def __init__(self, id: str, tickers: List[str] = [],
                  image_path: str = "",
@@ -93,6 +84,15 @@ def ReadCategoryFromJsonFile(filepath: pathlib.Path) -> StockCategoryHandler:
 CATEGORY_DATA_PATH = "resources/category_info/"
 CATEGORIES = [ReadCategoryFromJsonFile(f)
               for f in pathlib.Path(CATEGORY_DATA_PATH).iterdir() if f.suffix == '.json']
+
+
+class StockAllocationPage(Page):
+
+    def __init__(self, id: str, page_manager: PageManager):
+        super().__init__(id, page_manager)
+
+    def RenderPage(self, context: UnifiedContext) -> None:
+        st.header("Stock Allocations")
 
 
 class StockPickerPage(Page):
@@ -140,21 +140,39 @@ class StockPickerPage(Page):
             else:
                 st.success("Found ticker.")
 
-        GoToStockAllocation = st.empty()
-        __RenderTickerSearcher()
-
-        def __RenderEditorsChoiceStockList() -> None:
+        def __RenderEditorsChoiceStockList() -> List[str]:
             our_top_stocks_list: List[str] = ["MSFT", "GOOGL",
                                               "TSLA", "TSM", "C", "CSCO", "AAPL"]
-            st.multiselect("Our Top Stocks", our_top_stocks_list +
-                           our_top_stocks_list)
+            rtn: List[str] = st.multiselect("Our Top Stocks", our_top_stocks_list +
+                                            our_top_stocks_list)
+            return rtn
 
-        __RenderEditorsChoiceStockList()
-
+        cached_data_df = pd.DataFrame()  # context.cache.read_state_df(
+        # self.page_manager.cache_id)
+        print(cached_data_df)
+        print(cached_data_df.shape)
+        GoToStockAllocation = st.empty()
         gathered_stock_selection: Set[str] = set()
+        __RenderTickerSearcher()
+        # picked_stocks = __RenderEditorsChoiceStockList()
+        gathered_stock_selection = gathered_stock_selection | {
+            s for s in __RenderEditorsChoiceStockList()}
         for category in CATEGORIES:
             gathered_stock_selection = gathered_stock_selection | {
                 s for s in __InflateCategory(category)}
+
+        # Cache picked stocks and set to zero
+        print("LOAD NEW DATA")
+        cached_data_df["tickers"] = list(gathered_stock_selection)
+        # reset to zero
+        # TODO consider perhaps loading previously add allocations
+        cached_data_df["allocation"] = [
+            0 for _ in range(len(gathered_stock_selection))]
+        print(cached_data_df)
+        print("___END___")
+        # cache
+        context.cache.write_state_df(
+            cached_data_df, self.page_manager.cache_id)
         GoToStockAllocation.beta_container()
         if not gathered_stock_selection:
             with GoToStockAllocation:

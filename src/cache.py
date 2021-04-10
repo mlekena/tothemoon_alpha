@@ -21,8 +21,8 @@ PGPASS = config("DEVPOSTGRESPASSWORD")
 class Cache:
     """ designed to be a lazy evaluate"""
     __instance: "Cache" = None  # type: ignore
-    engine = create_engine(
-        'postgresql://%s:%s@localhost:5432/postgres' % (PGUSER, PGPASS))
+    default_connection_url = 'postgresql://%s:%s@localhost:5432/postgres' % (
+        PGUSER, PGPASS)
     metadata = MetaData()
 
     def __init__(self, connection_string: str) -> None:
@@ -32,6 +32,7 @@ class Cache:
             self.engine = create_engine(connection_string)
             self.metadata.create_all(self.engine)
             self.connection = self.engine.connect()
+
         else:
             raise RuntimeError(
                 "Attempting to create multiple Cache objects. Use get_instance(..) function.")
@@ -57,11 +58,13 @@ class Cache:
         self.engine.execute("UPDATE %s SET %s='%s'" %
                             (session_id, column, value))
 
-    def read_state(self, column, session_id) -> Any:  # type: ignore
+    def read_state(self, column, session_id, row=0) -> Any:  # type: ignore
         state_var = self.engine.execute(
             "SELECT %s FROM %s" % (column, session_id))
-        state_var = state_var.first()[0]
-        return state_var
+        # print(state_var.first())
+        state_var_val = state_var.first()[row]
+        state_var.close()
+        return state_var_val
 
     def InitCache(self, table_id: str, fields_and_types: List[Tuple[str, str]]) -> None:
         print("Creating table {} ({}) and returning early.".format(table_id, reduce(lambda lft, rht:

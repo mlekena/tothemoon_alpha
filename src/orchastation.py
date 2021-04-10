@@ -6,19 +6,19 @@ from streamlit import error as st_error
 
 
 class UnifiedContext(object):
-
+    # Passes Cache into Page render calls
     cache_schema = [("currentPage", TEXT_T)]
 
     def __init__(self, user: str) -> None:
         self.user = user
         # self.page_cache = page_cache
-        self.cache = Cache.get_instance()
+        self.cache = Cache.get_instance(Cache.default_connection_url)
         self.user_data: pd.DataFrame = pd.DataFrame([])
         self.unified_context_id = "_id_UnifiedContextCoreCache"
         self.cache.InitCache(self.unified_context_id,
                              UnifiedContext.cache_schema)
-        self.app_state: pd.DataFrame = self.cache.read_state_df(
-            self.unified_context_id)
+        # self.app_state: pd.DataFrame = self.cache.read_state_df(
+        #     self.unified_context_id)
     # String type used to get forward usage of type names
     # https://stackoverflow.com/questions/33533148/how-do-i-type-hint-a-method-with-the-type-of-the-enclosing-class
 
@@ -99,9 +99,9 @@ class PageManager(object):
         if self.current_page == self.NO_PAGES:
             st_error(
                 "PageManagerError: Attempting to render empty pages sequence.")
-        cache_df = self.context.RestorePageState(self.cache_id)
-        self.pages[self.current_page].RenderPage(self.cache_df)
-        self.context.StorePageState(self.cache_df, self.cache_id)
+        # cache_df = self.context.RestorePageState(self.cache_id)
+        self.pages[self.current_page].RenderPage(self.context)
+        # self.context.StorePageState(self.cache_df, self.cache_id)
 
     def GotoPage(self, page_id: str) -> None:
         if page_id not in self.pages:
