@@ -118,7 +118,7 @@ elif selected_window == sp_title:
     st.write("Stock Picking")
     # RenderStockPageOne()
     # ctx.SetCurrentPageManager(stock_pick_pm)
-    stock_pick_pm.GotoPage("stock_allocation_page")
+    # stock_pick_pm.GotoPage("stock_allocation_page")
     stock_pick_pm.RenderCurrentPage()
 elif selected_window == social_title:
     st.write("Social")

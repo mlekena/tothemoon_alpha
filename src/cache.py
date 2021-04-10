@@ -6,7 +6,8 @@ import pandas as pd
 import psycopg2
 from decouple import config
 from functools import reduce
-from sqlalchemy import create_engine, MetaData
+from sqlalchemy import (MetaData, Table, Column, Integer, Numeric, String,
+                        DateTime, ForeignKey, Boolean, create_engine)
 from typing import Dict, List, Tuple, Any, Optional, Callable, Set, NewType
 
 

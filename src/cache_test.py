@@ -8,13 +8,14 @@ from sqlalchemy import (MetaData, Table, Column, Integer, Numeric, String,
 
 
 class TestCache:
-    cache = Cache.get_instance("sqlite:///:memory:")
-    sp_session_id = "cache_test_id"
+    sp_session_id = "_id_cache_test_id"
     sp_table = Table(sp_session_id,
-                     cache.metadata,
+                     Cache.metadata,
                      Column("ticker", String(255), primary_key=True),
                      Column("allocation", Numeric(3, 12)))
     # insert = sp_table.insert()
+
+    cache = Cache.get_instance("sqlite:///:memory:")
 
     def prep_fake_stock_picker_data(self) -> None:
         mock_data = pd.DataFrame({'ticker': [], "allocation": []})
@@ -53,4 +54,51 @@ class TestCache:
             "allocation", TestCache.sp_session_id) == 99  # initial value of AAPL
         assert TestCache.cache.read_state_df(
             TestCache.sp_session_id).shape[0] == 3  # initial value of AAPL
-        assert False
+        # assert False
+
+
+class MockUnifiedContextCache:
+    connection = None
+    engine = None  # type: ingore
+    unified_context_id = "_id_unified_context_cache_test_id"
+    metadata = MetaData()
+    uc_table = Table(unified_context_id,
+                     metadata,
+                     Column("user_id", String(320), primary_key=True),
+                     Column("current_page", String(255)))
+
+    def df_init(self) -> None:
+        self.engine = create_engine("sqlite:///:memory:")
+        # https://stackoverflow.com/questions/45045147/sqlalchemy-exc-unboundexecutionerror-table-object-responsibles-is-not-bound-t
+        self.metadata.bind = self.engine
+        self.metadata.create_all(self.engine)
+        self.connection = self.engine.connect()
+
+
+class TestUnifiedContextCache:
+    muc = MockUnifiedContextCache()
+    # @classmethod
+
+    def setup_method(self) -> None:
+        """ setup any state specific to the execution of the given class (which
+        usually contains tests).
+        """
+        print("MUC init")
+        self.muc.df_init()
+
+    # @classmethod
+    def teardown_method(self) -> None:
+        """ teardown any state that was previously setup with a call to
+        setup_class.
+        """
+        print("MUC Connection Closing")
+        self.muc.connection.close()  # type: ignore
+
+    def test_check_table_exists(self) -> None:
+        assert self.muc.uc_table.exists()
+
+    def test_setting_current_page(self) -> None:
+        self.muc.connection.execute(self.muc.uc_table.insert().values(
+            user_id="test_id", current_page="test_page"))
+        assert self.muc.uc_table.c["current_page"] == "test_page"
+        # need to understand accessing Column object data
