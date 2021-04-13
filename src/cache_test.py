@@ -4,7 +4,11 @@ import pandas as pd
 import pytest
 import pytest_benchmark
 from sqlalchemy import (MetaData, Table, Column, Integer, Numeric, String,
-                        DateTime, ForeignKey, Boolean, create_engine)
+                        DateTime, ForeignKey, Boolean, create_engine, func,
+                        select, update)
+from typing import Any
+
+IN_MEMORY = "sqlite:///:memory:"
 
 
 class TestCache:
@@ -56,10 +60,39 @@ class TestCache:
             TestCache.sp_session_id).shape[0] == 3  # initial value of AAPL
         # assert False
 
+    def test_registering_(self):
+        ctx = Cache.get_instance(IN_MEMORY)
+        table_id = "_id_temp_user_table"
+
+        def t_func(table_id, metadata) -> Table:
+            table = Table(table_id,
+                          metadata,
+                          Column("user_id", String(
+                              320), primary_key=True),
+                          Column("current_page", String(255)))
+        table = ctx.RegisterCacheTable(table_id, t_func)
+        result = ctx.connection(table.select(func.count(table.c.user_id)))
+        assert result.scalar() == 0
+
+    def test_setting_data_in_cache(self) -> None:
+        ctx = Cache.get_instance(IN_MEMORY)
+        table_id = "_id_temp_user_table"
+
+        def t_func(table_id: str, metadata: MetaData) -> Table:
+            table = Table(table_id,
+                          metadata,
+                          Column("user_id", String(
+                              320), primary_key=True),
+                          Column("current_page", String(255)))
+        table = ctx.RegisterCacheTable(table_id, t_func)
+
+        ctx.CacheDataUpdate(update(table).where(
+            user_id="new_user").values(current_page=("new_page")))
+
 
 class MockUnifiedContextCache:
     connection = None
-    engine = None  # type: ingore
+    engine = None  # type: ignore
     unified_context_id = "_id_unified_context_cache_test_id"
     metadata = MetaData()
     uc_table = Table(unified_context_id,
@@ -79,6 +112,12 @@ class TestUnifiedContextCache:
     muc = MockUnifiedContextCache()
     # @classmethod
 
+    def GetTable(self) -> Table:
+        return self.muc.uc_table
+
+    def GetConn(self) -> Any:
+        return self.muc.connection
+
     def setup_method(self) -> None:
         """ setup any state specific to the execution of the given class (which
         usually contains tests).
@@ -95,10 +134,30 @@ class TestUnifiedContextCache:
         self.muc.connection.close()  # type: ignore
 
     def test_check_table_exists(self) -> None:
-        assert self.muc.uc_table.exists()
+        assert self.GetTable().exists()
+
+    def test_empty_unified_context_table_is_zero(self) -> None:
+        result = self.GetConn().execute(select(func.count(self.GetTable().c.user_id)))
+        assert result.scalar() == 0
 
     def test_setting_current_page(self) -> None:
-        self.muc.connection.execute(self.muc.uc_table.insert().values(
-            user_id="test_id", current_page="test_page"))
-        assert self.muc.uc_table.c["current_page"] == "test_page"
+        result = self.GetConn().execute(
+            self.GetTable().insert(),
+            user_id="test_id",
+            current_page="test_page")
+        assert result.inserted_primary_key[0] == "test_id"
+        result2 = self.GetConn().execute(select(func.count(self.GetTable().c.user_id)))
+        assert result2.scalar() == 1
+        assert self.GetConn().execute(
+            select([self.GetTable()])).first().current_page == "test_page"
+
+        # HOW TO DO A TABLE UPDATE
+        self.GetConn().execute(
+            update(self.GetTable())
+            .where(self.GetTable().c.user_id == "test_id")
+            .values(current_page=("a_new_page")))
+        assert self.GetConn().execute(
+            select([self.GetTable()])).first().current_page == "a_new_page"
+
+        # assert self.GetTable().c["current_page"] == "test_page"
         # need to understand accessing Column object data

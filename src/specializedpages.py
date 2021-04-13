@@ -90,10 +90,10 @@ CATEGORIES = [ReadCategoryFromJsonFile(f)
 
 
 class StockEvaluationPage(Page):
-    def __init(self, id: str, page_manager: PageManager):
+    def __init(self, id: str, page_manager: PageManager) -> None:
         super().__init__(id, page_manager)
 
-    def RenderPage(self, context: UnifiedContext):
+    def RenderPage(self, context: UnifiedContext) -> None:
         st.header("Evaluate position")
 
 
