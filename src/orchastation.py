@@ -132,17 +132,19 @@ class PageManager(object):
         self.page_manager_id = page_manager_id
         self.cache_id = "_id_%s" % self.page_manager_id
         self.pages: Dict[str, Page] = {}
-        self.current_page: str = self.NO_PAGES
+        # self.current_page: str = self.NO_PAGES
         self.cache_df: pd.DataFrame = None
-        # context.InitCache(self.cache_id, PageManager.cache_schema)
         self.context = context
+        # context.InitCache(self.cache_id, PageManager.cache_schema)
 
     def RegisterPage(self, new_page_renderer: Page) -> None:
         assert(new_page_renderer.id not in self.pages
                ), "Attempting to register duplicated ID"
+        if len(self.pages) == 0:
+            self.default_page_id = new_page_renderer.id
         self.pages[new_page_renderer.id] = new_page_renderer
-        if self.current_page == self.NO_PAGES:
-            self.current_page = new_page_renderer.id
+        # if self.current_page == self.NO_PAGES:
+        # self.current_page = self.default_page_id
 
     def RegisterPages(self, pages: List[Page]) -> None:
         """
@@ -154,11 +156,13 @@ class PageManager(object):
             self.RegisterPage(page)
 
     def RenderCurrentPage(self) -> None:
-        if self.current_page == self.NO_PAGES:
-            st_error(
-                "PageManagerError: Attempting to render empty pages sequence.")
+        # if self.current_page == self.NO_PAGES:
+        #     st_error(
+        #         "PageManagerError: Attempting to render empty pages sequence.")
+        if self.context.current_page not in self.pages:
+            self.context.SetCurrentPage(self.default_page_id)
         # cache_df = self.context.RestorePageState(self.cache_id)
-        self.pages[self.current_page].RenderPage(self.context)
+        self.pages[self.context.current_page].RenderPage(self.context)
         # self.context.StorePageState(self.cache_df, self.cache_id)
 
     def GotoPage(self, page_id: str) -> None:
