@@ -20,7 +20,6 @@ class HomePage(Page):
     def __init__(self, id: str,
                  page_manager: PageManager):
         super().__init__(id, page_manager)
-        # self.page_manager_ = page_manager
         self.stock_data = Stocks()
 
     def RenderPage(self, context: UnifiedContext) -> None:
@@ -46,7 +45,6 @@ class HomePage(Page):
                 rtn_df[column] = pd.Series(data["Close"])
             return rtn_df
 
-        # self.public_cache["val"] = 99
 
         chart_placeholder = st.empty()
         stocks_to_show: List[Tuple[str, bool]]
@@ -55,7 +53,6 @@ class HomePage(Page):
             stocks_to_show = __RenderStocksInPortfolioPicker(self.stock_data)
 
         charted_data = __GatherSelectedData(stocks_to_show, self.stock_data)
-        # st.dataframe(charted_data)
         # prints a table of the closing prices.
         chart_placeholder.line_chart(charted_data)
 
@@ -109,18 +106,16 @@ class StockAllocationPage(Page):
 
         st.header("Stock Allocations")
         cache_df = context.cache.read_state_df(self.page_manager.cache_id)
-        # st.write(cache_df)
+
         allocation_chart = st.empty()
         allocs: Dict[str, List[Decimal]] = {
             "tickers": list(), "allocations": list()}
         ticker_idx = 1
-        # alloc_idx = 2
+
         for row in cache_df.sort_values(by=["tickers"]).itertuples():
             allocs["tickers"].append(row[ticker_idx])
             allocs["allocations"].append(st.number_input(
                 row[ticker_idx], min_value=0))
-
-        # st.write(allocs)
 
         cache_df["tickers"] = allocs["tickers"]
         cache_df["allocations"] = allocs["allocations"]
@@ -197,14 +192,10 @@ class StockPickerPage(Page):
                                             our_top_stocks_list)
             return rtn
 
-        cached_data_df = pd.DataFrame()  # context.cache.read_state_df(
-        # self.page_manager.cache_id)
-        print(cached_data_df)
-        print(cached_data_df.shape)
+        cached_data_df = pd.DataFrame()  
         GoToStockAllocation = st.empty()
         gathered_stock_selection: Set[str] = set()
         __RenderTickerSearcher()
-        # picked_stocks = __RenderEditorsChoiceStockList()
         gathered_stock_selection = gathered_stock_selection | {
             s for s in __RenderEditorsChoiceStockList()}
         for category in CATEGORIES:
@@ -234,3 +225,6 @@ class StockPickerPage(Page):
             with GoToStockAllocation:
                 if st.button("Next", key="StocksSelected"):
                     self.page_manager.GotoPage("stock_allocation_page")
+
+
+"""TODO need to determine why a double click on next is neede!!!!"""

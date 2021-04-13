@@ -13,7 +13,7 @@ class UnifiedContext(object):
     If request from the wrong page manager, an assertion is raised.
     """
     # Passes Cache into Page render calls
-    cache_schema = [("currentPage", TEXT_T)]
+    # cache_schema = [("currentPage", TEXT_T)]
     # "_id_unified_context_cache"
     UNIFIED_CONTEXT_CACHE_ID = "_id_unified_context_cache_x1"
 
@@ -36,7 +36,7 @@ class UnifiedContext(object):
     def _SelectUnifiedContextDataStatement(self) -> Any:
         return select(self.table).where(self.table.c.user_id == self.user)
 
-    def _UpdateUnifiedCOntextDataStatement(self) -> Any:
+    def _UpdateUnifiedContextDataStatement(self) -> Any:
         return update(self.table) \
             .where(self.table.c.user_id == self.user) \
             .values(current_page=(self.current_page))
@@ -61,22 +61,16 @@ class UnifiedContext(object):
                 self._SelectUnifiedContextDataStatement())
             self.current_page = retrieved_data.current_page
 
-        # self.page_managers: Dict[str, PageManager] = {}
         self.user_data: pd.DataFrame = pd.DataFrame([])
-        self.unified_context_id = "_id_UnifiedContextCoreCache"
-        self.cache.InitCache(self.unified_context_id,
-                             UnifiedContext.cache_schema)
+        # self.unified_context_id = "_id_UnifiedContextCoreCache"
+        # self.cache.InitCache(self.unified_context_id,
+        #                      UnifiedContext.cache_schema)
 
-        # self.app_state: pd.DataFrame = self.cache.read_state_df(
-        #     self.unified_context_id)
     # String type used to get forward usage of type names
     # https://stackoverflow.com/questions/33533148/how-do-i-type-hint-a-method-with-the-type-of-the-enclosing-class
 
     def SetCurrentPage(self, page_id: str) -> None:
         # TODO Think about how to ensure this gets called before each render
-        # if page_id not in self.page_managers:
-        #     raise Exception(
-        #         "Setting to unregistered PageManager ${page_id}")
         self.current_page = page_id
 
     def GetCurrentPage(self) -> str:
@@ -91,7 +85,7 @@ class UnifiedContext(object):
         self.cache.write_state_df(state, page_manager_id)
 
     def StoreContextAndClear(self) -> None:
-        self.cache.CacheDataUpdate(self._UpdateUnifiedCOntextDataStatement())
+        self.cache.CacheDataUpdate(self._UpdateUnifiedContextDataStatement())
         self.cache.ClearCacheRegistry()
 
 
@@ -100,13 +94,6 @@ UNIFIED_CONTEXT_CACHE_LOCATION = "__ucc/"
 
 def LoadUnifiedContext() -> UnifiedContext:
     return UnifiedContext(user="Theko")
-    # ucc = os.path.join(UNIFIED_CONTEXT_CACHE_LOCATION, "theko.json")
-    # if not os.path.exists(UNIFIED_CONTEXT_CACHE_LOCATION):
-    #     return UnifiedContext(user="theko")
-    #     # os.mkdir(UNIFIED_CONTEXT_CACHE_LOCATION)
-    # with open(ucc, 'r') as uccfile:
-    #     uccjson = json.load(uccfile)
-    #     return UnifiedContext(user="saved_user")
 
 
 def StoreUnifiedContext(ctx: UnifiedContext) -> None:
@@ -132,10 +119,8 @@ class PageManager(object):
         self.page_manager_id = page_manager_id
         self.cache_id = "_id_%s" % self.page_manager_id
         self.pages: Dict[str, Page] = {}
-        # self.current_page: str = self.NO_PAGES
         self.cache_df: pd.DataFrame = None
         self.context = context
-        # context.InitCache(self.cache_id, PageManager.cache_schema)
 
     def RegisterPage(self, new_page_renderer: Page) -> None:
         assert(new_page_renderer.id not in self.pages
@@ -143,8 +128,6 @@ class PageManager(object):
         if len(self.pages) == 0:
             self.default_page_id = new_page_renderer.id
         self.pages[new_page_renderer.id] = new_page_renderer
-        # if self.current_page == self.NO_PAGES:
-        # self.current_page = self.default_page_id
 
     def RegisterPages(self, pages: List[Page]) -> None:
         """
@@ -156,14 +139,9 @@ class PageManager(object):
             self.RegisterPage(page)
 
     def RenderCurrentPage(self) -> None:
-        # if self.current_page == self.NO_PAGES:
-        #     st_error(
-        #         "PageManagerError: Attempting to render empty pages sequence.")
         if self.context.current_page not in self.pages:
             self.context.SetCurrentPage(self.default_page_id)
-        # cache_df = self.context.RestorePageState(self.cache_id)
         self.pages[self.context.current_page].RenderPage(self.context)
-        # self.context.StorePageState(self.cache_df, self.cache_id)
 
     def GotoPage(self, page_id: str) -> None:
         if page_id not in self.pages:
