@@ -1,3 +1,4 @@
+# header comments
 from .cache import Cache, TEXT_T, FLOAT_T
 
 import pandas as pd
@@ -25,6 +26,7 @@ class UnifiedContext(object):
                      Column("current_page", String(255)))
 
     def _insert_uc_cache_statement(self) -> Any:
+        # Check size
         return insert(self.table).values(user_id=self.user, current_page=self.current_page)
 
     def _UnifiedContextCacheIsEmpty(self) -> bool:
@@ -112,10 +114,10 @@ class Page(object):
 
 
 class PageManager(object):
-    __cache_schema = [("ticker", TEXT_T), ("allocation", FLOAT_T)]
+    # __cache_schema = [("ticker", TEXT_T), ("allocation", FLOAT_T)]
 
     def __init__(self, page_manager_id: str, context: UnifiedContext):
-        self.NO_PAGES = ""
+        # self.NO_PAGES = ""
         self.page_manager_id = page_manager_id
         self.cache_id = "_id_%s" % self.page_manager_id
         self.pages: Dict[str, Page] = {}

@@ -45,7 +45,6 @@ class HomePage(Page):
                 rtn_df[column] = pd.Series(data["Close"])
             return rtn_df
 
-
         chart_placeholder = st.empty()
         stocks_to_show: List[Tuple[str, bool]]
         _1, mc, _2 = st.beta_columns(3)
@@ -192,7 +191,7 @@ class StockPickerPage(Page):
                                             our_top_stocks_list)
             return rtn
 
-        cached_data_df = pd.DataFrame()  
+        cached_data_df = pd.DataFrame()
         GoToStockAllocation = st.empty()
         gathered_stock_selection: Set[str] = set()
         __RenderTickerSearcher()

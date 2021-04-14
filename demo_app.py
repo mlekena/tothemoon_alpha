@@ -14,19 +14,20 @@ import streamlit as st
 import pandas as pd
 from streamlit import write as wr
 # import psycopg2
-from decouple import config
+# from decouple import config
 
 from streamlit import sidebar as sbar
 from streamlit.report_thread import get_report_ctx
 
 from src.orchastation import LoadUnifiedContext, StoreUnifiedContext, PageManager, Page
-from src.specializedpages import HomePage, StockPickerPage, StockAllocationPage
+from src.specializedpages import HomePage, StockPickerPage, StockAllocationPage, StockEvaluationPage
 from src.errors import Status, Success, Failure
 from src.stockmon import Stocks
 
 
 @st.cache()  # type: ignore
 def get_data() -> pd.DataFrame:
+    # try catch (file notfound & OOM )
     return pd.read_csv("__data_file/C_hist_data.csv")
 
 
@@ -59,6 +60,7 @@ def GenerateSideBar() -> str:
 # Main Construction
 selected_window = GenerateSideBar()
 ctx = LoadUnifiedContext()
+
 home_pm = PageManager("HomeManager", ctx)
 home_pm.RegisterPage(HomePage("home_page", home_pm))
 
@@ -67,7 +69,8 @@ stock_pick_pm = PageManager("StockPickerManager", ctx)
 stock_pick_pm.RegisterPages([StockPickerPage("stock_pick_page_one", stock_pick_pm),
                              StockAllocationPage(
                                  "stock_allocation_page", stock_pick_pm),
-                             StockAllocationPage("stock_evaluation_page", stock_pick_pm)])
+                             StockEvaluationPage("stock_evaluation_page", stock_pick_pm)])
+# TODO Use correct page
 
 if selected_window == home_title:
     st.write("Home page")
