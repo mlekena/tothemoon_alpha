@@ -1,2 +1,4 @@
 venv
 __*
+resources/category_info
+.env
