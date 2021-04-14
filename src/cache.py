@@ -41,9 +41,6 @@ class Cache:
             Cache.__instance = self
             self.engine = create_engine(connection_string)
             self.metadata.bind = self.engine
-            # self.metadata.reflect()
-            # self.metadata.create_all(self.engine)
-            # self.connection = None
 
         else:
             raise RuntimeError(
@@ -78,7 +75,6 @@ class Cache:
     def read_state(self, column, session_id, row=0) -> Any:  # type: ignore
         state_var = self.connection.execute(
             "SELECT %s FROM %s" % (column, session_id))
-        # print(state_var.first())
         state_var_val = state_var.first()[row]
         return state_var_val
 
