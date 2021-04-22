@@ -1,4 +1,12 @@
 venv
 __*
-resources/category_info
 .env
+results/
+logs/
+data/
+csv-results/
+resources/local_stock_data/
+.benchmarks
+.ipynb_checkpoints
+.mypy_cache
+.pytest_cache
