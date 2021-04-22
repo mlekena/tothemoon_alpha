@@ -27,9 +27,10 @@ def clear_local_cache():
 
 def test_loading_new_data() -> None:
     df = stock_fetch.GetStockData("AAPL", tempDir)
-    assert(os.path.exists(os.path.join(tempDir, "AAPL.csv")))
+    stock_file = os.path.join(tempDir, "AAPL.csv")
+    assert(os.path.exists(stock_file))
     assert(not df.empty)
-
+    assert(not pd.read_csv(stock_file).empty)
 
 # class RmTestCase(unittest.TestCase):
 

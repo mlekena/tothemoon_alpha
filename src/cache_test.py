@@ -11,15 +11,25 @@ from typing import Any
 IN_MEMORY = "sqlite:///:memory:"
 
 
+def _GenTable(id: str, metadata: MetaData) -> Table:
+    return Table(id, metadata,
+                 Column("ticker", String(
+                        255), primary_key=True),
+                 Column("allocation", Numeric(3, 12)))
+
+
 class TestCache:
     sp_session_id = "_id_cache_test_id"
-    sp_table = Table(sp_session_id,
-                     Cache.metadata,
-                     Column("ticker", String(255), primary_key=True),
-                     Column("allocation", Numeric(3, 12)))
+    # sp_table = Table(sp_session_id,
+    #                  Cache.metadata,
+    #                  Column("ticker", String(255), primary_key=True),
+    #                  Column("allocation", Numeric(3, 12)))
+
     # insert = sp_table.insert()
 
     cache = Cache.get_instance("sqlite:///:memory:")
+    cache.RegisterCacheTable(sp_session_id, _GenTable)
+    cache.CreateRegisteredTablesAndConnect()
 
     def prep_fake_stock_picker_data(self) -> None:
         mock_data = pd.DataFrame({'ticker': [], "allocation": []})
