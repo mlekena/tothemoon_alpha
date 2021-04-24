@@ -82,8 +82,11 @@ def LoadData(ticker, n_steps=50,
     for col in feature_columns:
         assert col in df.columns, f"'{col}' does not exist in the dataframe."
     # add date as a column
+    # made the data column the table index
     if "date" not in df.columns:
         df["date"] = df.index
+    # If scaling, scale each column and store the column scalar transformer
+    # in the column_scaler
     if scale:
         column_scaler = {}
         # scale the data (prices) from 0 to 1
@@ -94,22 +97,46 @@ def LoadData(ticker, n_steps=50,
             column_scaler[column] = scaler
         # add the MinMaxScaler instances to the result returned
         result["column_scaler"] = column_scaler
+
     # add the target column (label) by shifting by `lookup_step`
+    """
+    Shifting detail: Given the true label of a price today is the
+    price listed `lookup_steps` ahead into the future, we can shift
+    the adjclose price by the number of days and create a label column
+    from the prices ahead.
+
+    This leaves certain prices at the end of the data set with values of 
+    NAN or null since there are no future prices
+    """
     df['future'] = df['adjclose'].shift(-lookup_step)
     # last `lookup_step` columns contains NaN in future column
-    # get them before droping NaNs
+    # get them before dropping NaNs
     last_sequence = np.array(df[feature_columns].tail(lookup_step))
     # drop NaNs
     df.dropna(inplace=True)
+
+    """
+    Next we gathera sequence of stock information data related to a 
+    future label to be predicted. If we look ahead 10 days, we group
+    sequences of 10 previous data to be used to predict the 11th
+    """
     sequence_data = []
     sequences = deque(maxlen=n_steps)
-    for entry, target in zip(df[feature_columns + ["date"]].values, df['future'].values):
+    for entry, target in zip(df[feature_columns + ["date"]].values,
+                             df['future'].values):  # entry:Row, target: label
+        # length of `sequence` never exceeeds n_steps set above
         sequences.append(entry)
         if len(sequences) == n_steps:
             sequence_data.append([np.array(sequences), target])
     # get the last sequence by appending the last `n_step` sequence with `lookup_step` sequence
     # for instance, if n_steps=50 and lookup_step=10, last_sequence should be of 60 (that is 50+10) length
     # this last_sequence will be used to predict future stock prices that are not available in the dataset
+    """
+    At this point sequence deque will have last remaining elements in df (which if you remember are
+    all the elements left after calling dropna). Now we extend that sequence with the captured NAN
+    rows giving us len(sequence) + len(dropped rows) number of elements. This list comprehension
+    essentially converts deque to a list.
+    """
     last_sequence = list([s[:len(feature_columns)]
                           for s in sequences]) + list(last_sequence)
     last_sequence = np.array(last_sequence).astype(np.float32)
