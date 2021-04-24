@@ -49,7 +49,7 @@ def GetStockData(ticker: str, stock_dir=STOCK_LOCAL_CACHE_PATH):
 def LoadData(ticker, n_steps=50,
              scale=True, shuffle=True,
              lookup_step=1, split_by_date=True,
-             test_size=0.2, feature_columns=['adjclose', 'volume', "open", "high", "low"]):
+             test_size=0.2, feature_columns=['adjclose', 'volume', "open", "high", "low"]) -> Dict[str, pd.DataFrame]:
     """
     Loads data from Yahoo Finance source, as well as scaling, shuffling, normalizing and splitting.
     Params:
