@@ -3,7 +3,7 @@ Credit: https://www.thepythoncode.com/article/stock-price-prediction-in-python-u
 """
 # type: ignore
 # mypy: ignore-errors
-from . stock_fetch import LoadData
+import stock_fetch
 
 import matplotlib.pyplot as plt
 import time
@@ -174,8 +174,8 @@ if __name__ == "__main__":
     ticker = "AMZN"
     ticker_data_filename = os.path.join("data", f"{ticker}_{date_now}.csv")
     # model name to save, making it as unique as possible based on parameters
-    model_name = f"{date_now}_{ticker}-{shuffle_str}-{scale_str}-{split_by_date_str}-\
-    {LOSS}-{OPTIMIZER}-{CELL.__name__}-seq-{N_STEPS}-step-{LOOKUP_STEP}-layers-{N_LAYERS}-units-{UNITS}"
+    model_name = f"{date_now}_{ticker}-{shuffle_str}-{scale_str}-{split_by_date_str}-" +\
+        f"{LOSS}-{OPTIMIZER}-{CELL.__name__}-seq-{N_STEPS}-step-{LOOKUP_STEP}-layers-{N_LAYERS}-units-{UNITS}"
     if BIDIRECTIONAL:
         model_name += "-b"
 
@@ -187,9 +187,9 @@ if __name__ == "__main__":
         os.mkdir("data")
 
     # load the data
-    data = LoadData(ticker, N_STEPS, scale=SCALE, split_by_date=SPLIT_BY_DATE,
-                    shuffle=SHUFFLE, lookup_step=LOOKUP_STEP, test_size=TEST_SIZE,
-                    feature_columns=FEATURE_COLUMNS)
+    data = stock_fetch.LoadData(ticker, N_STEPS, scale=SCALE, split_by_date=SPLIT_BY_DATE,
+                                shuffle=SHUFFLE, lookup_step=LOOKUP_STEP, test_size=TEST_SIZE,
+                                feature_columns=FEATURE_COLUMNS)
     # save the dataframe
     data["df"].to_csv(ticker_data_filename)
     # construct the model

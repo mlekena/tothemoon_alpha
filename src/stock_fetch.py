@@ -25,7 +25,7 @@ def ShuffleInUnison(a, b) -> None:
     np.random.shuffle(b)
 
 
-STOCK_LOCAL_CACHE_PATH = "/resources/local_stock_data"
+STOCK_LOCAL_CACHE_PATH = "resources/local_stock_data"
 
 
 def _InitStockCache(stock_path: str):
