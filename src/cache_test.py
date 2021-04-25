@@ -108,7 +108,7 @@ class TestCache:
 
 class MockUnifiedContextCache:
     connection = None
-    engine = None  # type: ignore
+    engine = None
     unified_context_id = "_id_unified_context_cache_test_id"
     metadata = MetaData()
     uc_table = Table(unified_context_id,

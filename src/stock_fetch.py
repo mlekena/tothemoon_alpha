@@ -4,14 +4,17 @@ Credit: https://www.thepythoncode.com/article/stock-price-prediction-in-python-u
 
 # mypy: ignore-errors
 
-from sklearn import preprocessing
-from yahoo_fin import stock_info as si
-from collections import deque
-
 import os
 import numpy as np
 import pandas as pd
 # import random
+
+from collections import deque
+from typing import Dict
+
+from sklearn import preprocessing
+from sklearn.model_selection import train_test_split
+from yahoo_fin import stock_info as si
 
 
 def ShuffleInUnison(a, b) -> None:
@@ -30,7 +33,7 @@ def _InitStockCache(stock_path: str):
         os.mkdir(stock_path)
 
 
-def GetStockData(ticker: str, stock_dir=STOCK_LOCAL_CACHE_PATH):
+def GetStockData(ticker: str, stock_dir: str):
     """
     Loads data from Yahoo finance or from local cache if stored
     Creates local cache path if not previously created.
@@ -49,7 +52,7 @@ def GetStockData(ticker: str, stock_dir=STOCK_LOCAL_CACHE_PATH):
 def LoadData(ticker, n_steps=50,
              scale=True, shuffle=True,
              lookup_step=1, split_by_date=True,
-             test_size=0.2, feature_columns=['adjclose', 'volume', "open", "high", "low"]) -> Dict[str, pd.DataFrame]:
+             test_size=0.2, feature_columns=['adjclose', 'volume', "open", "high", "low"], cache_path=STOCK_LOCAL_CACHE_PATH) -> Dict[str, pd.DataFrame]:
     """
     Loads data from Yahoo Finance source, as well as scaling, shuffling, normalizing and splitting.
     Params:
@@ -67,7 +70,7 @@ def LoadData(ticker, n_steps=50,
     if isinstance(ticker, str):
         # load it from yahoo_fin library
         # df = si.get_data(ticker)
-        df = GetStockData(ticker)
+        df = GetStockData(ticker=ticker, stock_dir=cache_path)
     elif isinstance(ticker, pd.DataFrame):
         # already loaded, use it directly
         df = ticker
