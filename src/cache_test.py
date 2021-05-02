@@ -1,4 +1,4 @@
-from . cache import Cache
+from src.cache import Cache
 
 import pandas as pd
 import pytest
@@ -11,15 +11,29 @@ from typing import Any
 IN_MEMORY = "sqlite:///:memory:"
 
 
+def _GenTable(id: str, metadata: MetaData) -> Table:
+    return Table(id, metadata,
+                 Column("ticker", String(
+                        255), primary_key=True),
+                 Column("allocation", Numeric(3, 12)))
+
+
 class TestCache:
     sp_session_id = "_id_cache_test_id"
-    sp_table = Table(sp_session_id,
-                     Cache.metadata,
-                     Column("ticker", String(255), primary_key=True),
-                     Column("allocation", Numeric(3, 12)))
+    # sp_table = Table(sp_session_id,
+    #                  Cache.metadata,
+    #                  Column("ticker", String(255), primary_key=True),
+    #                  Column("allocation", Numeric(3, 12)))
+
     # insert = sp_table.insert()
 
     cache = Cache.get_instance("sqlite:///:memory:")
+    cache.RegisterCacheTable(sp_session_id, _GenTable)
+    cache.CreateRegisteredTablesAndConnect()
+
+    def teardown_method(self):  # type: ignore
+        print("BRING THIS SHIT DOWN!!!")
+        self.cache.metadata.clear()
 
     def prep_fake_stock_picker_data(self) -> None:
         mock_data = pd.DataFrame({'ticker': [], "allocation": []})
@@ -60,18 +74,18 @@ class TestCache:
             TestCache.sp_session_id).shape[0] == 3  # initial value of AAPL
         # assert False
 
-    def test_registering_(self):
+    def test_registering_(self) -> None:
         ctx = Cache.get_instance(IN_MEMORY)
         table_id = "_id_temp_user_table"
 
-        def t_func(table_id, metadata) -> Table:
-            table = Table(table_id,
-                          metadata,
-                          Column("user_id", String(
-                              320), primary_key=True),
-                          Column("current_page", String(255)))
+        def t_func(table_id: str, metadata: MetaData) -> Table:
+            return Table(table_id,
+                         metadata,
+                         Column("user_id", String(
+                             320), primary_key=True),
+                         Column("current_page", String(255)))
         table = ctx.RegisterCacheTable(table_id, t_func)
-        result = ctx.connection(table.select(func.count(table.c.user_id)))
+        result = ctx.CacheInsert(select(func.count(table.c.user_id)))
         assert result.scalar() == 0
 
     def test_setting_data_in_cache(self) -> None:
@@ -79,20 +93,22 @@ class TestCache:
         table_id = "_id_temp_user_table"
 
         def t_func(table_id: str, metadata: MetaData) -> Table:
-            table = Table(table_id,
-                          metadata,
-                          Column("user_id", String(
-                              320), primary_key=True),
-                          Column("current_page", String(255)))
+            return Table(table_id,
+                         metadata,
+                         Column("user_id", String(
+                             320), primary_key=True),
+                         Column("current_page", String(255)))
+
         table = ctx.RegisterCacheTable(table_id, t_func)
 
         ctx.CacheDataUpdate(update(table).where(
-            user_id="new_user").values(current_page=("new_page")))
+            table.c.user_id == "new_user").values(current_page=("new_page")))
+        # NOT THIS WAY: user_id="new_user").values(current_page=("new_page")))
 
 
 class MockUnifiedContextCache:
     connection = None
-    engine = None  # type: ignore
+    engine = None
     unified_context_id = "_id_unified_context_cache_test_id"
     metadata = MetaData()
     uc_table = Table(unified_context_id,

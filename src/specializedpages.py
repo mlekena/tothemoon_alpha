@@ -1,6 +1,6 @@
-from .orchastation import Page, PageManager, UnifiedContext
-from .errors import *
-from .stockmon import Stocks
+from src.orchastation import Page, PageManager, UnifiedContext
+from src.errors import Success, Failure
+from src.stockmon import Stocks
 
 
 import pathlib
@@ -133,7 +133,7 @@ class StockAllocationPage(Page):
 
             if st.button("Evaluate Position"):
                 if all_allocated:
-                    self.page_manager.GotoPage("stock_evaluation")
+                    self.page_manager.GotoPage("stock_evaluation_page")
                 else:
                     st.info(
                         "Need to provide an allocation to all listed positions before evaluation.")

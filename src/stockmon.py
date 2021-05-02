@@ -1,7 +1,7 @@
 from typing import Dict, Tuple
 
 import pandas as pd
-from .errors import Status, Success, Failure
+from src.errors import Status, Success, Failure
 
 
 class Stocks:
