@@ -4,7 +4,7 @@
 # import unittest
 # import mock
 from src.stock_fetch import LoadData, GetStockData
-from src.ttma_dojo import CreateModel, DefaultFinModel
+from src.ttma_dojo import CreateModel, DefaultFinModel, Predict
 
 import tempfile
 import pandas as pd
@@ -161,32 +161,52 @@ def xtest_model_classification(benchmark) -> None:  # type: ignore
         assert(resulting_models[ticker]["mae"] ==
                trained_models[ticker]["mae"]), "mae values for ticker {} not equal".format(ticker)
 
-    def test_defaultmodel_is_empty_one_create():
-        model = DefaultFinModel("GOOG")
-        assert model.model == None
-        assert model.tensorboard == None
-        assert model.data == None
 
-    # def test_get_stock_at_price():
-    #     tickers_and_price = [("MSFT", 100), ("MMM", 200), ("ABT", 300)]
-    #     stock
-    # class RmTestCase(unittest.TestCase):
+def test_defaultmodel_is_empty_one_create() -> None:
+    model: DefaultFinModel = DefaultFinModel("GOOG")
+    assert model.model == None
+    assert model.tensorboard == None
+    assert model.data == None
 
-    #     @ mock.patch('mymodule.os.path')
-    #     @ mock.patch('mymodule.os')
-    #     def test_rm(self, mock_os, mock_path):
-    #         # set up the mock
-    #         mock_path.isfile.return_value = False
 
-    #         rm("any path")
+def test_defaultmodel_loads_data_from_dataframe() -> None:
+    model = DefaultFinModel("ABT")
+    model.GetModel()
+    assert(model.data == None)
+    data_df = pd.read_csv("src/test_data/ABT_2021-05-01.csv")
+    model.LoadData(data_df)
+    assert(model.data != None)
 
-    #         # test that the remove call was NOT called.
-    #         self.assertFalse(mock_os.remove.called,
-    #                          "Failed to not remove the file if not present.")
 
-    #         # make the file 'exist'
-    #         mock_path.isfile.return_value = True
+def test_defaultmodel_loads_latest_ticker_model() -> None:
+    model = DefaultFinModel("ABT")
+    assert model.model == None
+    model.GetModel()
+    assert model.model != None
+    test_model_path = os.path.join("src",
+                                   "test_models", "2021-05-01_ABT-sh-1-sc-1-sbd-0-huber_loss-adam-LSTM-seq-50-step-92-layers-2-units-256.h5")
+    model.LoadModelWeights(test_model_path)
+    assert Predict(model.model, model.data) > 0.0
+# def test_get_stock_at_price():
+#     tickers_and_price = [("MSFT", 100), ("MMM", 200), ("ABT", 300)]
+#     stock
+# class RmTestCase(unittest.TestCase):
 
-    #         rm("any path")
+#     @ mock.patch('mymodule.os.path')
+#     @ mock.patch('mymodule.os')
+#     def test_rm(self, mock_os, mock_path):
+#         # set up the mock
+#         mock_path.isfile.return_value = False
 
-    #         mock_os.remove.assert_called_with("any path")
+#         rm("any path")
+
+#         # test that the remove call was NOT called.
+#         self.assertFalse(mock_os.remove.called,
+#                          "Failed to not remove the file if not present.")
+
+#         # make the file 'exist'
+#         mock_path.isfile.return_value = True
+
+#         rm("any path")
+
+#         mock_os.remove.assert_called_with("any path")

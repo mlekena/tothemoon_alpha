@@ -116,7 +116,7 @@ def get_final_df(model, data):
     return final_df
 
 
-def predict(model, data):
+def Predict(model, data):
     # retrieve the last sequence from data
     last_sequence = data["last_sequence"][-N_STEPS:]
     # expand dimension
@@ -267,13 +267,13 @@ class DefaultFinModel(object):
         self.LOOKUP_STEP = 15  # days
         # whether to scale feature columns & output price as well
         self.SCALE = True
-        scale_str = f"sc-{int(SCALE)}"
+        scale_str = f"sc-{int(self.SCALE)}"
         # whether to shuffle the dataset
         self.SHUFFLE = True
-        shuffle_str = f"sh-{int(SHUFFLE)}"
+        shuffle_str = f"sh-{int(self.SHUFFLE)}"
         # whether to split the training/testing set by date
         self.SPLIT_BY_DATE = False
-        split_by_date_str = f"sbd-{int(SPLIT_BY_DATE)}"
+        split_by_date_str = f"sbd-{int(self.SPLIT_BY_DATE)}"
         # test ratio size, 0.2 is 20%
         self.TEST_SIZE = 0.2
         # features to use
@@ -310,6 +310,7 @@ class DefaultFinModel(object):
         self.data = None
         self.model = None
         self.checkpointer = None
+        self.tensorboard = None
 
     def GetCheckPointer(self):
         # some tensorflow callbacks
@@ -325,11 +326,17 @@ class DefaultFinModel(object):
                 log_dir=os.path.join(DEFAULT_LOGS, self.model_name))
         return self.tensorboard
 
-    def LoadData(self):
-        # load the data
-        self.data = stock_fetch.LoadData(ticker, self.N_STEPS, scale=self.SCALE, split_by_date=self.SPLIT_BY_DATE,
-                                         shuffle=self.SHUFFLE, lookup_step=self.LOOKUP_STEP, test_size=self.EST_SIZE,
-                                         feature_columns=self.FEATURE_COLUMNS)
+    def LoadData(self, data_df=pd.DataFrame()):
+        if data_df.empty:
+            # load the data
+            self.data = stock_fetch.LoadData(ticker, self.N_STEPS, scale=self.SCALE, split_by_date=self.SPLIT_BY_DATE,
+                                             shuffle=self.SHUFFLE, lookup_step=self.LOOKUP_STEP, test_size=self.EST_SIZE,
+                                             feature_columns=self.FEATURE_COLUMNS)
+        else:
+            self.data = stock_fetch.LoadData(data_df, self.N_STEPS, scale=self.SCALE, split_by_date=self.SPLIT_BY_DATE,
+                                             shuffle=self.SHUFFLE, lookup_step=self.LOOKUP_STEP, test_size=self.EST_SIZE,
+                                             feature_columns=self.FEATURE_COLUMNS)
+
         # save the dataframe
         # data["df"].to_csv(ticker_data_filename)
 
@@ -339,3 +346,7 @@ class DefaultFinModel(object):
             self.model = CreateModel(self.N_STEPS, len(self.FEATURE_COLUMNS), loss=self.LOSS, units=self.UNITS, cell=self.CELL, n_layers=self.N_LAYERS,
                                      dropout=self.DROPOUT, optimizer=self.OPTIMIZER, bidirectional=self.BIDIRECTIONAL)
         return self.model
+
+    def LoadModelWeights(self, model_weight_path):
+        assert(self.model), "call GetModel to instantiate model object"
+        self.model.load_weights(model_weight_path)
