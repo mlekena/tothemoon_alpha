@@ -3,7 +3,7 @@ Credit: https://www.thepythoncode.com/article/stock-price-prediction-in-python-u
 """
 # type: ignore
 # mypy: ignore-errors
-import stock_fetch
+import src.stock_fetch
 
 import matplotlib.pyplot as plt
 import time
@@ -253,3 +253,89 @@ if __name__ == "__main__":
         os.mkdir(csv_results_folder)
     csv_filename = os.path.join(csv_results_folder, model_name + ".csv")
     final_df.to_csv(csv_filename)
+
+DEFAULT_LOGS = os.path.join("logs")
+DEFAULT_RESULTS = os.path.join("results")
+
+
+class DefaultFinModel(object):
+
+    def __init__(self, ticker):
+        # Window size or the sequence length
+        self.N_STEPS = 50
+        # Lookup step, 1 is the next day
+        self.LOOKUP_STEP = 15  # days
+        # whether to scale feature columns & output price as well
+        self.SCALE = True
+        scale_str = f"sc-{int(SCALE)}"
+        # whether to shuffle the dataset
+        self.SHUFFLE = True
+        shuffle_str = f"sh-{int(SHUFFLE)}"
+        # whether to split the training/testing set by date
+        self.SPLIT_BY_DATE = False
+        split_by_date_str = f"sbd-{int(SPLIT_BY_DATE)}"
+        # test ratio size, 0.2 is 20%
+        self.TEST_SIZE = 0.2
+        # features to use
+        self.FEATURE_COLUMNS = ["adjclose", "volume", "open", "high", "low"]
+        # date now
+        date_now = time.strftime("%Y-%m-%d")
+        # model parameters
+        self.N_LAYERS = 2
+        # LSTM cell
+        self.CELL = LSTM
+        # 256 LSTM neurons
+        self.UNITS = 256
+        # 40% dropout
+        self.DROPOUT = 0.4
+        # whether to use bidirectional RNNs
+        self.BIDIRECTIONAL = False
+        # training parameters
+        # mean absolute error loss
+        # LOSS = "mae"
+        # huber loss
+        self.LOSS = "huber_loss"
+        self.OPTIMIZER = "adam"
+        self.BATCH_SIZE = 64
+        self.EPOCHS = 500
+        self.ticker = ticker.upper()
+        del ticker
+        # ticker_data_filename = os.path.join(
+        #     "data", f"{self.ticker}_{date_now}.csv")
+        # model name to save, making it as unique as possible based on parameters
+        self.model_name = f"{date_now}_{self.ticker}-{shuffle_str}-{scale_str}-{split_by_date_str}-" +\
+            f"{self.LOSS}-{self.OPTIMIZER}-{self.CELL.__name__}-seq-{self.N_STEPS}-step-{self.LOOKUP_STEP}-layers-{self.N_LAYERS}-units-{self.UNITS}"
+        if self.BIDIRECTIONAL:
+            self.model_name += "-b"
+        self.data = None
+        self.model = None
+        self.checkpointer = None
+
+    def GetCheckPointer(self):
+        # some tensorflow callbacks
+        if not self.checkpointer:
+            checkpointer = ModelCheckpoint(os.path.join(
+                "results", self.model_name + ".h5"), save_weights_only=True, save_best_only=True, verbose=1)
+        return self.checkpointer
+        self.tensorboard = None
+
+    def GetTensorBoard(self):
+        if not self.tensorboard:
+            tensorboard = TensorBoard(
+                log_dir=os.path.join(DEFAULT_LOGS, self.model_name))
+        return self.tensorboard
+
+    def LoadData(self):
+        # load the data
+        self.data = stock_fetch.LoadData(ticker, self.N_STEPS, scale=self.SCALE, split_by_date=self.SPLIT_BY_DATE,
+                                         shuffle=self.SHUFFLE, lookup_step=self.LOOKUP_STEP, test_size=self.EST_SIZE,
+                                         feature_columns=self.FEATURE_COLUMNS)
+        # save the dataframe
+        # data["df"].to_csv(ticker_data_filename)
+
+    def GetModel(self):
+        if not self.model:
+            # construct the model
+            self.model = CreateModel(self.N_STEPS, len(self.FEATURE_COLUMNS), loss=self.LOSS, units=self.UNITS, cell=self.CELL, n_layers=self.N_LAYERS,
+                                     dropout=self.DROPOUT, optimizer=self.OPTIMIZER, bidirectional=self.BIDIRECTIONAL)
+        return self.model

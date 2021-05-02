@@ -3,8 +3,8 @@
 
 # import unittest
 # import mock
-from . stock_fetch import LoadData, GetStockData
-from . ttma_dojo import CreateModel
+from src.stock_fetch import LoadData, GetStockData
+from src.ttma_dojo import CreateModel, DefaultFinModel
 
 import tempfile
 import pandas as pd
@@ -36,8 +36,10 @@ def test_loading_new_data() -> None:
     assert(not df.empty)
     assert(not pd.read_csv(stock_file).empty)
 
+# remove 'x' to test training and loading
 
-def test_model_classification(benchmark) -> None:  # type: ignore
+
+def xtest_model_classification(benchmark) -> None:  # type: ignore
     # Window size or the sequence length
     N_STEPS = 50
     # Lookup step, 1 is the next day
@@ -158,6 +160,16 @@ def test_model_classification(benchmark) -> None:  # type: ignore
                trained_models[ticker]["loss"]), "loss values for ticker {} not equal".format(ticker)
         assert(resulting_models[ticker]["mae"] ==
                trained_models[ticker]["mae"]), "mae values for ticker {} not equal".format(ticker)
+
+    def test_defaultmodel_is_empty_one_create():
+        model = DefaultFinModel("GOOG")
+        assert model.model == None
+        assert model.tensorboard == None
+        assert model.data == None
+
+    # def test_get_stock_at_price():
+    #     tickers_and_price = [("MSFT", 100), ("MMM", 200), ("ABT", 300)]
+    #     stock
     # class RmTestCase(unittest.TestCase):
 
     #     @ mock.patch('mymodule.os.path')

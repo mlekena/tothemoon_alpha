@@ -1,4 +1,4 @@
-from . cache import Cache
+from src.cache import Cache
 
 import pandas as pd
 import pytest

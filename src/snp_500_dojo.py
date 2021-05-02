@@ -9,8 +9,8 @@ from tensorflow.keras.layers import LSTM, Dense, Dropout, Bidirectional
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard
 
-import stock_fetch
-import ttma_dojo
+import src.stock_fetch
+import src.ttma_dojo
 
 
 def load_smp_tickers() -> List[str]:

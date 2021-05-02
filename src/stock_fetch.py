@@ -7,7 +7,6 @@ Credit: https://www.thepythoncode.com/article/stock-price-prediction-in-python-u
 import os
 import numpy as np
 import pandas as pd
-# import random
 
 from collections import deque
 from typing import Dict
