@@ -168,6 +168,8 @@ def test_defaultmodel_is_empty_one_create() -> None:
     assert model.tensorboard == None
     assert model.data == None
 
+# TODO add test for passing in dataframe with incorrect ticker row value
+
 
 def test_defaultmodel_loads_data_from_dataframe() -> None:
     model = DefaultFinModel("ABT")
@@ -180,13 +182,14 @@ def test_defaultmodel_loads_data_from_dataframe() -> None:
 
 def test_defaultmodel_loads_latest_ticker_model() -> None:
     model = DefaultFinModel("ABT")
+    model.LoadData(pd.read_csv("src/test_data/ABT_2021-05-01.csv"))
     assert model.model == None
     model.GetModel()
     assert model.model != None
     test_model_path = os.path.join("src",
                                    "test_models", "2021-05-01_ABT-sh-1-sc-1-sbd-0-huber_loss-adam-LSTM-seq-50-step-92-layers-2-units-256.h5")
     model.LoadModelWeights(test_model_path)
-    assert Predict(model.model, model.data) > 0.0
+    assert model.Predict(model.data) > 0.0
 # def test_get_stock_at_price():
 #     tickers_and_price = [("MSFT", 100), ("MMM", 200), ("ABT", 300)]
 #     stock

@@ -3,7 +3,7 @@ Credit: https://www.thepythoncode.com/article/stock-price-prediction-in-python-u
 """
 # type: ignore
 # mypy: ignore-errors
-import src.stock_fetch
+import src.stock_fetch as stock_fetch
 
 import matplotlib.pyplot as plt
 import time
@@ -260,7 +260,7 @@ DEFAULT_RESULTS = os.path.join("results")
 
 class DefaultFinModel(object):
 
-    def __init__(self, ticker):
+    def __init__(self, ticker) -> None:
         # Window size or the sequence length
         self.N_STEPS = 50
         # Lookup step, 1 is the next day
@@ -330,11 +330,15 @@ class DefaultFinModel(object):
         if data_df.empty:
             # load the data
             self.data = stock_fetch.LoadData(ticker, self.N_STEPS, scale=self.SCALE, split_by_date=self.SPLIT_BY_DATE,
-                                             shuffle=self.SHUFFLE, lookup_step=self.LOOKUP_STEP, test_size=self.EST_SIZE,
+                                             shuffle=self.SHUFFLE, lookup_step=self.LOOKUP_STEP, test_size=self.TEST_SIZE,
                                              feature_columns=self.FEATURE_COLUMNS)
         else:
+            assert "ticker" in data_df.columns, f"column 'ticker' does not exist in the dataframe."
+            df_ticker = data_df["ticker"]
+            assert(
+                self.ticker == data_df["ticker"][0]), f"model expected ticker '${self.ticker}' but dataframe has ticker '${df_ticker}'."
             self.data = stock_fetch.LoadData(data_df, self.N_STEPS, scale=self.SCALE, split_by_date=self.SPLIT_BY_DATE,
-                                             shuffle=self.SHUFFLE, lookup_step=self.LOOKUP_STEP, test_size=self.EST_SIZE,
+                                             shuffle=self.SHUFFLE, lookup_step=self.LOOKUP_STEP, test_size=self.TEST_SIZE,
                                              feature_columns=self.FEATURE_COLUMNS)
 
         # save the dataframe
@@ -350,3 +354,19 @@ class DefaultFinModel(object):
     def LoadModelWeights(self, model_weight_path):
         assert(self.model), "call GetModel to instantiate model object"
         self.model.load_weights(model_weight_path)
+
+    def Predict(self, other_data: pd.DataFrame):
+        # retrieve the last sequence from other_data
+        last_sequence = other_data["last_sequence"][-self.N_STEPS:]
+        # expand dimension
+        last_sequence = np.expand_dims(last_sequence, axis=0)
+        # get the prediction (scaled from 0 to 1)
+        prediction = self.model.predict(last_sequence)
+        # get the price (by inverting the scaling)
+        if self.SCALE:
+            predicted_price = \
+                other_data["column_scaler"]["adjclose"] \
+                .inverse_transform(prediction)[0][0]
+        else:
+            predicted_price = prediction[0][0]
+        return predicted_price
