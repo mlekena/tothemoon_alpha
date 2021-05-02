@@ -9,13 +9,25 @@ from tensorflow.keras.layers import LSTM, Dense, Dropout, Bidirectional
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard
 
-import src.stock_fetch
-import src.ttma_dojo
+import src.stock_fetch as stock_fetch
+import src.ttma_dojo as ttma_dojo
+
+RESULTS_PATH = "results"
+LOGS_PATH = "logs"
+DATA_PATH = "data"
 
 
 def load_smp_tickers() -> List[str]:
     with open("resources/snp_tickers.txt") as ticker_file:
         return list(map(lambda s: s.strip(), ticker_file.readlines()))
+
+
+class SNPModel(object):
+
+    def __init__(self, num_members: int = 500):
+        self.size = num_members
+        all_tickers = load_smp_tickers()
+        self.tickers = all_tickers[:self.size]
 
 
 if __name__ == "__main__":
@@ -72,19 +84,16 @@ if __name__ == "__main__":
         if not os.path.isdir(path):
             os.mkdir(path)
 
-    result_path = "results"
-    logs_path = "logs"
-    data_path = "data"
-    ChecKPathAndRemake(result_path)
-    ChecKPathAndRemake(logs_path)
-    ChecKPathAndRemake(data_path)
+    ChecKPathAndRemake(RESULTS_PATH)
+    ChecKPathAndRemake(LOGS_PATH)
+    ChecKPathAndRemake(DATA_PATH)
 
     # resulting_models: Dict[str, Dict[str, Any]] = dict()
     # trained_models: Dict[str, Dict[str, Any]] = dict()
     for ticker in snp500_tickers[:2]:
         print("{}/nLearning {}/n{}".format("#"*50, ticker, "#"*50))
         ticker_data_filename = os.path.join(
-            data_path, f"{ticker}_{date_now}.csv")
+            DATA_PATH, f"{ticker}_{date_now}.csv")
         # model name to save, making it as unique as possible based on parameters
         model_name: str = f"{date_now}_{ticker}-{shuffle_str}-{scale_str}-{split_by_date_str}-" +\
             f"{LOSS}-{OPTIMIZER}-{CELL.__name__}-seq-{N_STEPS}-step-{LOOKUP_STEP}-layers-{N_LAYERS}-units-{UNITS}"
@@ -102,9 +111,9 @@ if __name__ == "__main__":
                                       dropout=DROPOUT, optimizer=OPTIMIZER, bidirectional=BIDIRECTIONAL)
         # some tensorflow callbacks
         checkpointer = ModelCheckpoint(os.path.join(
-            result_path, model_name + ".h5"), save_weights_only=True, save_best_only=True, verbose=1)
+            RESULTS_PATH, model_name + ".h5"), save_weights_only=True, save_best_only=True, verbose=1)
         tensorboard = TensorBoard(
-            log_dir=os.path.join(logs_path, model_name))
+            log_dir=os.path.join(LOGS_PATH, model_name))
         # train the model and save the weights whenever we see
         # a new optimal model using ModelCheckpoint
         history = model.fit(data["X_train"], data["y_train"],
@@ -116,5 +125,5 @@ if __name__ == "__main__":
 
         # Load saved model weights
         # load optimal model weights from results folder
-        model_path = os.path.join(result_path, model_name) + ".h5"
+        model_path = os.path.join(RESULTS_PATH, model_name) + ".h5"
         model.load_weights(model_path)
