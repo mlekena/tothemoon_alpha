@@ -24,3 +24,12 @@ def test_summoning_fusion_model():
     model = SNPModel(20)
     assert model.size == 20
     assert len(model.tickers) == model.size
+
+
+def test_fusion_model_single_ticker_prediction():
+    model = SNPModel(2)
+    tickers_and_price = [("MMM", 200), ("ABT", 300)]
+    prediction_result = model.Predict(tickers_and_price[0])
+    assert(prediction_result > 0)
+
+# def test_fusion_model_predict_with_one_member

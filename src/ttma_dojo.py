@@ -20,13 +20,17 @@ import os
 import numpy as np
 import pandas as pd
 import random
-from typing import Any
+from typing import Any, Callable, Optional, List
 
 
 def GetFilesInDirectory(directory: str, strategy: Callable[[str], Any]) -> Optional[List[Any]]:
     if not os.path.exists(directory) or not os.path.isdir(directory):
         return None
     return list(map(lambda path: strategy(path), os.listdir(directory)))
+
+
+def ParseTicker(filename: str) -> str:
+    return filename.split("_")[1].split("-")[0]
 
 
 def CreateModel(sequence_length, n_features, units=256, cell=LSTM, n_layers=2, dropout=0.3,
@@ -333,38 +337,53 @@ class DefaultFinModel(object):
                 log_dir=os.path.join(DEFAULT_LOGS, self.model_name))
         return self.tensorboard
 
-    def LoadData(self, data_df=pd.DataFrame()):
-        if data_df.empty:
-            # load the data
-            self.data = stock_fetch.LoadData(ticker, self.N_STEPS, scale=self.SCALE, split_by_date=self.SPLIT_BY_DATE,
-                                             shuffle=self.SHUFFLE, lookup_step=self.LOOKUP_STEP, test_size=self.TEST_SIZE,
-                                             feature_columns=self.FEATURE_COLUMNS)
+    def LoadData(self, data_or_ticker):
+        if isinstance(data_or_ticker, str):
+            if data_or_ticker:
+                # load the data
+                self.data = stock_fetch.LoadData(data_or_ticker, self.N_STEPS, scale=self.SCALE, split_by_date=self.SPLIT_BY_DATE,
+                                                 shuffle=self.SHUFFLE, lookup_step=self.LOOKUP_STEP, test_size=self.TEST_SIZE,
+                                                 feature_columns=self.FEATURE_COLUMNS)
         else:
-            assert "ticker" in data_df.columns, f"column 'ticker' does not exist in the dataframe."
-            df_ticker = data_df["ticker"]
+            assert "ticker" in data_or_ticker.columns, f"column 'ticker' does not exist in the dataframe."
+            df_ticker = data_or_ticker["ticker"]
             assert(
-                self.ticker == data_df["ticker"][0]), f"model expected ticker '${self.ticker}' but dataframe has ticker '${df_ticker}'."
-            self.data = stock_fetch.LoadData(data_df, self.N_STEPS, scale=self.SCALE, split_by_date=self.SPLIT_BY_DATE,
+                self.ticker == data_or_ticker["ticker"][0]), f"model expected ticker '${self.ticker}' but dataframe has ticker '${df_ticker}'."
+            self.data = stock_fetch.LoadData(data_or_ticker, self.N_STEPS, scale=self.SCALE, split_by_date=self.SPLIT_BY_DATE,
                                              shuffle=self.SHUFFLE, lookup_step=self.LOOKUP_STEP, test_size=self.TEST_SIZE,
                                              feature_columns=self.FEATURE_COLUMNS)
 
         # save the dataframe
         # data["df"].to_csv(ticker_data_filename)
 
-    def GetModel(self):
+    def GetModel(self) -> Sequential:
         if not self.model:
             # construct the model
             self.model = CreateModel(self.N_STEPS, len(self.FEATURE_COLUMNS), loss=self.LOSS, units=self.UNITS, cell=self.CELL, n_layers=self.N_LAYERS,
                                      dropout=self.DROPOUT, optimizer=self.OPTIMIZER, bidirectional=self.BIDIRECTIONAL)
         return self.model
 
-    def LoadModelWeights(self, model_weight_path):
+    def LoadModelWeights(self, model_weight_path) -> None:
         assert(self.model), "call GetModel to instantiate model object"
         self.model.load_weights(model_weight_path)
 
-    def Predict(self, other_data: pd.DataFrame):
+    def __PrepForPrediction(self, other_data: pd.DataFrame) -> Any:
+        """
+        Loads stock data frames with any ticker. 
+        TODO remove once redundant after restructuring code to remove builder pattern
+        construction of this object.        
+        """
+        return stock_fetch.LoadData(other_data, self.N_STEPS, scale=self.SCALE, split_by_date=self.SPLIT_BY_DATE,
+                                    shuffle=self.SHUFFLE, lookup_step=self.LOOKUP_STEP, test_size=self.TEST_SIZE,
+                                    feature_columns=self.FEATURE_COLUMNS)
+
+    def Predict(self, other_data: pd.DataFrame) -> pd.Series:
+        """Given a regular dataframe containing the stock ticker inforation
+        it is prepared and processed into appropriate form and used 
+        for preduction. See __PrepForPrediction"""
+        data_collection = self.__PrepForPrediction(other_data)
         # retrieve the last sequence from other_data
-        last_sequence = other_data["last_sequence"][-self.N_STEPS:]
+        last_sequence = data_collection["last_sequence"][-self.N_STEPS:]
         # expand dimension
         last_sequence = np.expand_dims(last_sequence, axis=0)
         # get the prediction (scaled from 0 to 1)
@@ -372,7 +391,7 @@ class DefaultFinModel(object):
         # get the price (by inverting the scaling)
         if self.SCALE:
             predicted_price = \
-                other_data["column_scaler"]["adjclose"] \
+                data_collection["column_scaler"]["adjclose"] \
                 .inverse_transform(prediction)[0][0]
         else:
             predicted_price = prediction[0][0]

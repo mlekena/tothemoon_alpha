@@ -4,7 +4,7 @@
 # import unittest
 # import mock
 from src.stock_fetch import LoadData, GetStockData
-from src.ttma_dojo import CreateModel, DefaultFinModel, Predict, GetFilesInDirectory
+from src.ttma_dojo import CreateModel, DefaultFinModel, Predict, GetFilesInDirectory, ParseTicker
 
 import tempfile
 import pandas as pd
@@ -27,6 +27,13 @@ def GenTempDirPath(file: str) -> str:
 
 raw_data_tempDir = GenTempDirPath("tmp-testfile")
 # raw_data_tempDir = tempfile.gettempdir()
+
+
+def test_parsing_weights_filename_for_ticker():
+    test_filename = "2021-05-01_ABT-sh-1-sc-1-sbd-0-huber_loss-adam-LSTM-seq-50-step-92-layers-2-units-256.h5"
+    assert(ParseTicker(test_filename) == "ABT")
+    model = DefaultFinModel("ABT")
+    assert(ParseTicker(model.model_name) == model.ticker)
 
 
 def test_reading_directories() -> None:

@@ -8,6 +8,7 @@ from typing import Dict, List, Tuple, Any
 from tensorflow.keras.layers import LSTM, Dense, Dropout, Bidirectional
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard
+import pandas as pd
 
 import src.stock_fetch as stock_fetch
 import src.ttma_dojo as ttma_dojo
@@ -22,12 +23,57 @@ def load_smp_tickers() -> List[str]:
         return list(map(lambda s: s.strip(), ticker_file.readlines()))
 
 
+"""
+TODO: Assume there is one model .h5 file for each ticker
+scrap path, grab filenames and make a ticker:path dict. Then
+load the weihghts on SNPModel construction with the new weights
+
+TODO decided (we have ) whther to use getmodels assumed paths 
+to data
+
+TODO complete prediction function for one 'other' ticker which
+creates a matrics of predictions then average across the matrics and 
+return the value of the furthest prediction
+
+TODO create function that iterates over all the portfolio tickers
+
+test test test and use in streamlit
+would be great to show testing for accuracy
+"""
+
+
 class SNPModel(object):
 
     def __init__(self, num_members: int = 500):
         self.size = num_members
-        all_tickers = load_smp_tickers()
-        self.tickers = all_tickers[:self.size]
+        self.tickers = load_smp_tickers()[:self.size]
+
+        def MakeModel(ticker: str):
+            dmodel = ttma_dojo.DefaultFinModel(ticker)
+            dmodel.GetModel()
+            dmodel.LoadData()  # Load data using set ticker name
+            dmodel.LoadModelWeights(  # TODO Complete loading data and run test on left to pass. Need to complete a usage of the SNPModel
+                "2021-05-01_ABT-sh-1-sc-1-sbd-0-huber_loss-adam-LSTM-seq-50-step-92-layers-2-units-256.h5")
+            return dmodel
+        self.models = dict([(ticker, MakeModel(ticker))
+                            for ticker in self.tickers])
+
+    def Predict(self, ticker_to_predict: str, ticker_data: pd.DataFrame) -> float:
+        """
+            Given a tickers, it will run the ticker
+            related model and return the respective predicted
+            future price as a ticker:price pair
+        """
+        predictions: List[pd.Series] = []
+        for ticker in self.tickers:
+            model_member = self.models[ticker]
+            prediction = model_member.Predict(ticker_data)
+            predictions.append(prediction)
+
+        assert(len(predictions)
+               ), "Not all the listed models contributed to prediction."
+
+        return 0
 
 
 if __name__ == "__main__":
