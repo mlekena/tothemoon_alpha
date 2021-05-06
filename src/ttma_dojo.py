@@ -20,6 +20,13 @@ import os
 import numpy as np
 import pandas as pd
 import random
+from typing import Any
+
+
+def GetFilesInDirectory(directory: str, strategy: Callable[[str], Any]) -> Optional[List[Any]]:
+    if not os.path.exists(directory) or not os.path.isdir(directory):
+        return None
+    return list(map(lambda path: strategy(path), os.listdir(directory)))
 
 
 def CreateModel(sequence_length, n_features, units=256, cell=LSTM, n_layers=2, dropout=0.3,

@@ -4,7 +4,7 @@
 # import unittest
 # import mock
 from src.stock_fetch import LoadData, GetStockData
-from src.ttma_dojo import CreateModel, DefaultFinModel, Predict
+from src.ttma_dojo import CreateModel, DefaultFinModel, Predict, GetFilesInDirectory
 
 import tempfile
 import pandas as pd
@@ -14,7 +14,7 @@ import os
 import time
 import shutil
 
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Callable, Optional
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout, Bidirectional
@@ -27,6 +27,26 @@ def GenTempDirPath(file: str) -> str:
 
 raw_data_tempDir = GenTempDirPath("tmp-testfile")
 # raw_data_tempDir = tempfile.gettempdir()
+
+
+def test_reading_directories() -> None:
+    temp_dir = "test_reading_directories_"
+    temp_dir_path = GenTempDirPath(temp_dir)
+    files = ["file_1.txt", "file_2.txt", "file_3.txt"]
+    if (not os.path.exists(temp_dir_path)):
+        os.mkdir(temp_dir_path)
+    test_paths = [GenTempDirPath(f) for f in map(
+        lambda afile: os.path.join(temp_dir, afile), files)]
+    print(test_paths)
+    actual_files_in_dir = GetFilesInDirectory(
+        GenTempDirPath("test_reading_directories_"), lambda x: x)
+    assert(actual_files_in_dir != None)
+    for actual_file in actual_files_in_dir:
+        assert(actual_file in files)
+    if (os.path.exists(temp_dir_path)):
+        shutil.rmtree(temp_dir_path)
+        assert(not os.path.exists(temp_dir_path)
+               ), "Test create files cleaned correctly"
 
 
 def test_loading_new_data() -> None:
@@ -91,16 +111,16 @@ def xtest_model_classification(benchmark) -> None:  # type: ignore
         os.mkdir(path)
         return os.path.exists(path)
 
-    def ChecKPathAndRemake(path: str) -> bool:
+    def CheckPathAndRemake(path: str) -> bool:
         if not os.path.isdir(path):
             os.mkdir(path)
             return True
         else:
             return ClearAndMkdir(path)
 
-    ChecKPathAndRemake(test_result_path)
-    ChecKPathAndRemake(test_logs_path)
-    ChecKPathAndRemake(test_data_path)
+    CheckPathAndRemake(test_result_path)
+    CheckPathAndRemake(test_logs_path)
+    CheckPathAndRemake(test_data_path)
 
     resulting_models: Dict[str, Dict[str, Any]] = dict()
     trained_models: Dict[str, Dict[str, Any]] = dict()
@@ -183,13 +203,15 @@ def test_defaultmodel_loads_data_from_dataframe() -> None:
 def test_defaultmodel_loads_latest_ticker_model() -> None:
     model = DefaultFinModel("ABT")
     model.LoadData(pd.read_csv("src/test_data/ABT_2021-05-01.csv"))
+    assert(model.data), "Test Model data is empty or failed to load."
     assert model.model == None
     model.GetModel()
     assert model.model != None
     test_model_path = os.path.join("src",
                                    "test_models", "2021-05-01_ABT-sh-1-sc-1-sbd-0-huber_loss-adam-LSTM-seq-50-step-92-layers-2-units-256.h5")
     model.LoadModelWeights(test_model_path)
-    assert model.Predict(model.data) > 0.0
+    # TODO Need a data instance variable
+    assert model.Predict(model.data['df']) > 0.0
 # def test_get_stock_at_price():
 #     tickers_and_price = [("MSFT", 100), ("MMM", 200), ("ABT", 300)]
 #     stock
