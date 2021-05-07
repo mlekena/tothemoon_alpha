@@ -57,16 +57,13 @@ class SNPModel(object):
             related model and return the respective predicted
             future price as a ticker:price pair
         """
-        predictions: List[pd.Series] = []
+        prediction_result = 0
         for ticker in self.tickers:
             model_member = self.models[ticker]
             prediction = model_member.Predict(ticker_data)
-            predictions.append(prediction)
-
-        assert(len(predictions)
-               ), "Not all the listed models contributed to prediction."
-
-        return 0
+            prediction_result += prediction
+        res = (prediction_result/self.size)
+        return res
 
 
 if __name__ == "__main__":
