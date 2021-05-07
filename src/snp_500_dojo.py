@@ -11,7 +11,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard
 import pandas as pd
 
 import src.stock_fetch as stock_fetch
-import src.ttma_dojo as ttma_dojo
+import src.ttma_dojo as dojo
 
 RESULTS_PATH = "results"
 LOGS_PATH = "logs"
@@ -48,14 +48,7 @@ class SNPModel(object):
         self.size = num_members
         self.tickers = load_smp_tickers()[:self.size]
 
-        def MakeModel(ticker: str):
-            dmodel = ttma_dojo.DefaultFinModel(ticker)
-            dmodel.GetModel()
-            dmodel.LoadData()  # Load data using set ticker name
-            dmodel.LoadModelWeights(  # TODO Complete loading data and run test on left to pass. Need to complete a usage of the SNPModel
-                "2021-05-01_ABT-sh-1-sc-1-sbd-0-huber_loss-adam-LSTM-seq-50-step-92-layers-2-units-256.h5")
-            return dmodel
-        self.models = dict([(ticker, MakeModel(ticker))
+        self.models = dict([(ticker, dojo.BuildDefaultModel(ticker))
                             for ticker in self.tickers])
 
     def Predict(self, ticker_to_predict: str, ticker_data: pd.DataFrame) -> float:
@@ -77,6 +70,10 @@ class SNPModel(object):
 
 
 if __name__ == "__main__":
+    run_bootcamp()
+
+
+def run_bootcamp():
     print("Loading S&P500")
     snp500_tickers = load_smp_tickers()
     print(f"{len(snp500_tickers)} tickers loaded...")
@@ -136,7 +133,7 @@ if __name__ == "__main__":
 
     # resulting_models: Dict[str, Dict[str, Any]] = dict()
     # trained_models: Dict[str, Dict[str, Any]] = dict()
-    for ticker in snp500_tickers[:2]:
+    for ticker in snp500_tickers[:5]:
         print("{}/nLearning {}/n{}".format("#"*50, ticker, "#"*50))
         ticker_data_filename = os.path.join(
             DATA_PATH, f"{ticker}_{date_now}.csv")
@@ -153,8 +150,8 @@ if __name__ == "__main__":
         # save the dataframe
         data["df"].to_csv(ticker_data_filename)
         # construct the model
-        model = ttma_dojo.CreateModel(N_STEPS, len(FEATURE_COLUMNS), loss=LOSS, units=UNITS, cell=CELL, n_layers=N_LAYERS,
-                                      dropout=DROPOUT, optimizer=OPTIMIZER, bidirectional=BIDIRECTIONAL)
+        model = dojo.CreateModel(N_STEPS, len(FEATURE_COLUMNS), loss=LOSS, units=UNITS, cell=CELL, n_layers=N_LAYERS,
+                                 dropout=DROPOUT, optimizer=OPTIMIZER, bidirectional=BIDIRECTIONAL)
         # some tensorflow callbacks
         checkpointer = ModelCheckpoint(os.path.join(
             RESULTS_PATH, model_name + ".h5"), save_weights_only=True, save_best_only=True, verbose=1)

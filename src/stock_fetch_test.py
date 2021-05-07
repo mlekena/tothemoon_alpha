@@ -4,7 +4,7 @@
 # import unittest
 # import mock
 from src.stock_fetch import LoadData, GetStockData
-from src.ttma_dojo import CreateModel, DefaultFinModel, Predict, GetFilesInDirectory, ParseTicker
+from src.ttma_dojo import CreateModel, DefaultFinModel, Predict, GetFilesInDirectory, ParseTicker, GetAvailableModelsIn
 
 import tempfile
 import pandas as pd
@@ -30,7 +30,7 @@ raw_data_tempDir = GenTempDirPath("tmp-testfile")
 
 
 def test_parsing_weights_filename_for_ticker():
-    test_filename = "2021-05-01_ABT-sh-1-sc-1-sbd-0-huber_loss-adam-LSTM-seq-50-step-92-layers-2-units-256.h5"
+    test_filename = "2021-05-07_ABT-sh-1-sc-1-sbd-0-huber_loss-adam-LSTM-seq-50-step-92-layers-2-units-256.h5"
     assert(ParseTicker(test_filename) == "ABT")
     model = DefaultFinModel("ABT")
     assert(ParseTicker(model.model_name) == model.ticker)
@@ -54,6 +54,16 @@ def test_reading_directories() -> None:
         shutil.rmtree(temp_dir_path)
         assert(not os.path.exists(temp_dir_path)
                ), "Test create files cleaned correctly"
+
+
+def test_scanning_models_directory():
+    expected_ticker_to_models = [
+        ("2021-05-07_ABT-sh-1-sc-1-sbd-0-huber_loss-adam-LSTM-seq-50-step-92-layers-2-units-256.h5", "ABT"),
+        ("2021-05-07_MMM-sh-1-sc-1-sbd-0-huber_loss-adam-LSTM-seq-50-step-92-layers-2-units-256.h5", "MMM")]
+    actual_ticker_to_models = GetAvailableModelsIn("src/test_models")
+    for model_filename, eticker in expected_ticker_to_models:
+        assert(actual_ticker_to_models[eticker] == os.path.join(
+            "src/test_models", model_filename))
 
 
 def test_loading_new_data() -> None:
@@ -215,7 +225,7 @@ def test_defaultmodel_loads_latest_ticker_model() -> None:
     model.GetModel()
     assert model.model != None
     test_model_path = os.path.join("src",
-                                   "test_models", "2021-05-01_ABT-sh-1-sc-1-sbd-0-huber_loss-adam-LSTM-seq-50-step-92-layers-2-units-256.h5")
+                                   "test_models", "2021-05-07_ABT-sh-1-sc-1-sbd-0-huber_loss-adam-LSTM-seq-50-step-92-layers-2-units-256.h5")
     model.LoadModelWeights(test_model_path)
     # TODO Need a data instance variable
     assert model.Predict(model.data['df']) > 0.0

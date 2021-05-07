@@ -20,7 +20,7 @@ import os
 import numpy as np
 import pandas as pd
 import random
-from typing import Any, Callable, Optional, List
+from typing import Any, Callable, Optional, List, NewType, Dict
 
 
 def GetFilesInDirectory(directory: str, strategy: Callable[[str], Any]) -> Optional[List[Any]]:
@@ -31,6 +31,17 @@ def GetFilesInDirectory(directory: str, strategy: Callable[[str], Any]) -> Optio
 
 def ParseTicker(filename: str) -> str:
     return filename.split("_")[1].split("-")[0]
+
+
+_TypeTicker = NewType("_TypeTicker", str)
+_TypePath = NewType("_TypePath", str)
+
+
+def GetAvailableModelsIn(directory: str) -> Dict[_TypeTicker, _TypePath]:
+    def get_path_if_ticker(filename: str):
+        maybe_ticker = ParseTicker(filename)
+        return (maybe_ticker, os.path.join(directory, filename))
+    return dict(GetFilesInDirectory(directory, get_path_if_ticker))
 
 
 def CreateModel(sequence_length, n_features, units=256, cell=LSTM, n_layers=2, dropout=0.3,
@@ -80,8 +91,8 @@ def plot_graph(test_df):
 
 def get_final_df(model, data):
     """
-    This function takes the `model` and `data` dict to 
-    construct a final dataframe that includes the features along 
+    This function takes the `model` and `data` dict to
+    construct a final dataframe that includes the features along
     with true and predicted prices of the testing dataset
     """
     # if predicted future price is higher than the current,
@@ -369,9 +380,9 @@ class DefaultFinModel(object):
 
     def __PrepForPrediction(self, other_data: pd.DataFrame) -> Any:
         """
-        Loads stock data frames with any ticker. 
+        Loads stock data frames with any ticker.
         TODO remove once redundant after restructuring code to remove builder pattern
-        construction of this object.        
+        construction of this object.
         """
         return stock_fetch.LoadData(other_data, self.N_STEPS, scale=self.SCALE, split_by_date=self.SPLIT_BY_DATE,
                                     shuffle=self.SHUFFLE, lookup_step=self.LOOKUP_STEP, test_size=self.TEST_SIZE,
@@ -379,7 +390,7 @@ class DefaultFinModel(object):
 
     def Predict(self, other_data: pd.DataFrame) -> pd.Series:
         """Given a regular dataframe containing the stock ticker inforation
-        it is prepared and processed into appropriate form and used 
+        it is prepared and processed into appropriate form and used
         for preduction. See __PrepForPrediction"""
         data_collection = self.__PrepForPrediction(other_data)
         # retrieve the last sequence from other_data
@@ -396,3 +407,14 @@ class DefaultFinModel(object):
         else:
             predicted_price = prediction[0][0]
         return predicted_price
+
+
+PRODTICKERMODELDICT = GetAvailableModelsIn("results")
+
+
+def BuildDefaultModel(ticker: str, ticker_to_models: Dict[str, str] = PRODTICKERMODELDICT):
+    dmodel = DefaultFinModel(ticker)
+    dmodel.GetModel()
+    dmodel.LoadData(ticker)  # Load data using set ticker name
+    dmodel.LoadModelWeights(ticker_to_models[ticker])
+    return dmodel

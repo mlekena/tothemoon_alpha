@@ -19,17 +19,24 @@ import numpy as np
 import pandas as pd
 import random
 
+TEST_DATA_DIR = "src/test_data"
+
 
 def test_summoning_fusion_model():
-    model = SNPModel(20)
-    assert model.size == 20
+    model = SNPModel(5)
+    assert model.size == 5
     assert len(model.tickers) == model.size
 
 
 def test_fusion_model_single_ticker_prediction():
     model = SNPModel(2)
-    tickers_and_price = [("MMM", 200), ("ABT", 300)]
-    prediction_result = model.Predict(tickers_and_price[0])
+    threeM_ticker = ("MMM", 200)
+    abt_ticker = ("ABT", 300)
+    assert(model.models[threeM_ticker[0]] != None)
+    assert(model.models[abt_ticker[0]] != None)
+
+    prediction_result = model.Predict(
+        threeM_ticker, stock_fetch.GetStockData(threeM_ticker[0], TEST_DATA_DIR))
     assert(prediction_result > 0)
 
 # def test_fusion_model_predict_with_one_member
