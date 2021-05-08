@@ -3,6 +3,7 @@
 
 import time
 import os
+# import decimal
 
 from typing import Dict, List, Tuple, Any
 from tensorflow.keras.layers import LSTM, Dense, Dropout, Bidirectional
@@ -28,11 +29,11 @@ TODO: Assume there is one model .h5 file for each ticker
 scrap path, grab filenames and make a ticker:path dict. Then
 load the weihghts on SNPModel construction with the new weights
 
-TODO decided (we have ) whther to use getmodels assumed paths 
+TODO decided (we have ) whther to use getmodels assumed paths
 to data
 
 TODO complete prediction function for one 'other' ticker which
-creates a matrics of predictions then average across the matrics and 
+creates a matrics of predictions then average across the matrics and
 return the value of the furthest prediction
 
 TODO create function that iterates over all the portfolio tickers
@@ -56,6 +57,10 @@ class SNPModel(object):
             Given a tickers, it will run the ticker
             related model and return the respective predicted
             future price as a ticker:price pair
+
+            Further work: perhaps predict only in scaled value form and perform avg on 
+            scaled prediction, then rescale to the factor used by the stock in question
+
         """
         prediction_result = 0
         for ticker in self.tickers:
@@ -64,6 +69,15 @@ class SNPModel(object):
             prediction_result += prediction
         res = (prediction_result/self.size)
         return res
+
+    def PredictProfitFlow(self, stock_pack: List[Tuple[str, pd.DataFrame]]) -> Dict[str, float]:
+        for t, df in stock_pack:
+            assert isinstance(
+                df, pd.DataFrame), "One of the passed in fields is not a DataFrame"
+        return list(map(
+            lambda td_pair: (td_pair[0], self.Predict(
+                td_pair[0], td_pair[1])),
+            stock_pack))
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ Credit: https://www.thepythoncode.com/article/stock-price-prediction-in-python-u
 import os
 import numpy as np
 import pandas as pd
+import logging
 
 from collections import deque
 from typing import Dict
@@ -40,10 +41,13 @@ def GetStockData(ticker: str, stock_dir: str):
     _InitStockCache(stock_dir)
     data_path = f"{stock_dir}/{ticker}.csv"
     if not os.path.exists(data_path):
+        logging.info(
+            "{} ticker cache doesnt exist. Pulling from web.".format(ticker))
         df = si.get_data(ticker)
         # TODO check df is not empty or errored out
         df.to_csv(data_path)
     else:
+        logging.info("%s ticker found in cache. Restoring locally" % ticker)
         df = pd.read_csv(data_path)
     return df
 
