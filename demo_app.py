@@ -58,30 +58,36 @@ def GenerateSideBar() -> str:
 
 
 # Main Construction
-selected_window = GenerateSideBar()
-ctx = LoadUnifiedContext()
+ctx = None
+try:
+    selected_window = GenerateSideBar()
+    ctx = LoadUnifiedContext()
 
-home_pm = PageManager("HomeManager", ctx)
-home_pm.RegisterPage(HomePage("home_page", home_pm))
+    home_pm = PageManager("HomeManager", ctx)
+    home_pm.RegisterPage(HomePage("home_page", home_pm))
 
-stock_pick_pm = PageManager("StockPickerManager", ctx)
-# TODO assert for duplicate page ids in pagemanager
-stock_pick_pm.RegisterPages([StockPickerPage("stock_pick_page_one", stock_pick_pm),
-                             StockAllocationPage(
-                                 "stock_allocation_page", stock_pick_pm),
-                             StockEvaluationPage("stock_evaluation_page", stock_pick_pm)])
-# TODO Use correct page
+    stock_pick_pm = PageManager("StockPickerManager", ctx)
+    # TODO assert for duplicate page ids in pagemanager
+    stock_pick_pm.RegisterPages([StockPickerPage("stock_pick_page_one", stock_pick_pm),
+                                 StockAllocationPage(
+        "stock_allocation_page", stock_pick_pm),
+        StockEvaluationPage("stock_evaluation_page", stock_pick_pm)])
+    # TODO Use correct page
 
-if selected_window == home_title:
-    st.write("Home page")
-    home_pm.RenderCurrentPage()
-elif selected_window == sp_title:
-    st.write("Stock Picking")
-    stock_pick_pm.RenderCurrentPage()
-elif selected_window == social_title:
-    st.write("Social")
-else:
-    st.error("Unknown section selected!")
+    if selected_window == home_title:
+        st.write("Home page")
+        home_pm.RenderCurrentPage()
+    elif selected_window == sp_title:
+        st.write("Stock Picking")
+        stock_pick_pm.RenderCurrentPage()
+    elif selected_window == social_title:
+        st.write("Social")
+    else:
+        st.error("Unknown section selected!")
 
-StoreUnifiedContext(ctx)
-st.balloons()
+    StoreUnifiedContext(ctx)
+    st.balloons()
+except Exception as e:
+    if ctx:
+        StoreUnifiedContext(ctx)
+    raise e

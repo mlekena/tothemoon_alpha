@@ -13,6 +13,7 @@ import streamlit as st
 import plotly.graph_objects as go
 from streamlit import sidebar as sbar
 from streamlit.report_thread import get_report_ctx
+from yahoo_fin import stock_info as si
 
 
 class HomePage(Page):
@@ -85,6 +86,11 @@ CATEGORIES = [ReadCategoryFromJsonFile(f)
               for f in pathlib.Path(CATEGORY_DATA_PATH).iterdir() if f.suffix == '.json']
 
 
+def GetCurrentPrice(ticker: str) -> float:
+    """Query Yfin for the current ticker price."""
+    return si.get_live_price(ticker)
+
+
 class StockEvaluationPage(Page):
     def __init(self, id: str, page_manager: PageManager) -> None:
         super().__init__(id, page_manager)
@@ -102,31 +108,45 @@ class StockAllocationPage(Page):
         pass
 
     def RenderPage(self, context: UnifiedContext) -> None:
-
+        TICKER_COL = "tickers"
+        ALLOC_COL = "allocation"
         st.header("Stock Allocations")
         cache_df = context.cache.read_state_df(self.page_manager.cache_id)
-
         allocation_chart = st.empty()
         allocs: Dict[str, List[Decimal]] = {
-            "tickers": list(), "allocations": list()}
-        ticker_idx = 1
+            TICKER_COL: list(), ALLOC_COL: list()}
+        TICKER_IDX = 1
+        for row in cache_df.sort_values(by=[TICKER_COL]).itertuples():
+            lhs, mid, rhs = st.beta_columns(3)
+            with lhs:
+                price = GetCurrentPrice(row[TICKER_IDX])
+                assert(
+                    price >= 0), "Retrieved zero or negative price in StockAllocationPage"
+                st.write("Price %f" % price)
+            with mid:
+                allocs[TICKER_COL].append(row[TICKER_IDX])
+                allocs[ALLOC_COL].append(st.number_input(
+                    row[TICKER_IDX], min_value=0))
+                purchased = allocs[ALLOC_COL][-1]
+            with rhs:
+                st.write("Final Price:{}".format(price * purchased))
+        cache_df[TICKER_COL] = allocs[TICKER_COL]
+        cache_df[ALLOC_COL] = allocs[ALLOC_COL]
+        st.write(cache_df[TICKER_COL])
+        st.write(cache_df[ALLOC_COL])
 
-        for row in cache_df.sort_values(by=["tickers"]).itertuples():
-            allocs["tickers"].append(row[ticker_idx])
-            allocs["allocations"].append(st.number_input(
-                row[ticker_idx], min_value=0))
-
-        cache_df["tickers"] = allocs["tickers"]
-        cache_df["allocations"] = allocs["allocations"]
         fig = go.Figure(data=[go.Pie(
-            labels=cache_df["tickers"], values=cache_df["allocations"], hole=0.2)])
+            labels=cache_df[TICKER_COL], values=cache_df[ALLOC_COL], hole=0.2)])
         fig.update_traces(hoverinfo="label+percent",
                           marker=dict(line=dict(color="#000000", width=2)))
         allocation_chart.write(fig)
+        # STORE CACHE UPDATES TO THE DATABASE
+        context.cache.write_state_df(
+            cache_df, self.page_manager.cache_id)
         _1, center, _2 = st.beta_columns(3)
         with center:
             all_allocated = True
-            for ticker, alloc in zip(allocs["tickers"], allocs["allocations"]):
+            for ticker, alloc in zip(allocs[TICKER_COL], allocs[ALLOC_COL]):
                 if alloc == 0:
                     all_allocated = False
                     break
