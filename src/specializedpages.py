@@ -1,7 +1,8 @@
 from src.orchastation import Page, PageManager, UnifiedContext
 from src.errors import Success, Failure
 from src.stockmon import Stocks
-
+from src.snp_500_dojo import SNPModel
+from src.stock_fetch import GetStockData, STOCK_LOCAL_CACHE_PATH
 
 import pathlib
 import json
@@ -84,6 +85,10 @@ def ReadCategoryFromJsonFile(filepath: pathlib.Path) -> StockCategoryHandler:
 CATEGORY_DATA_PATH = "resources/category_info/"
 CATEGORIES = [ReadCategoryFromJsonFile(f)
               for f in pathlib.Path(CATEGORY_DATA_PATH).iterdir() if f.suffix == '.json']
+TICKER_COL = "tickers"
+TICKER_IDX = 1
+ALLOC_COL = "allocation"
+ALLOC_IDX = 2
 
 
 def GetCurrentPrice(ticker: str) -> float:
@@ -95,8 +100,55 @@ class StockEvaluationPage(Page):
     def __init(self, id: str, page_manager: PageManager) -> None:
         super().__init__(id, page_manager)
 
+    def GetModel(self):
+        """Serves to cache model creation using @st.cache"""
+        return SNPModel(1)
+
     def RenderPage(self, context: UnifiedContext) -> None:
+        def gain_loss_styler(val):
+            color = "green" if val > 0 else "red"
+            return "color: %s" % color
         st.header("Evaluate position")
+        banner = st.empty()
+        banner_detail = st.empty()
+        cached_df = context.cache.read_state_df(self.page_manager.cache_id)
+        model = self.GetModel()
+        predictions = model.PredictProfitFlow(list(map(
+            lambda row: (row[TICKER_IDX], GetStockData(
+                row[TICKER_IDX], STOCK_LOCAL_CACHE_PATH)),
+            cached_df.sort_values(by=[TICKER_COL]).itertuples())))
+        # st.write(predictions)
+        price_movements = list()
+        idx = 0
+        for ticker, prediction in predictions:
+            alloc = cached_df[cached_df[TICKER_COL] == ticker][ALLOC_COL][idx]
+            price_at_purchase = GetCurrentPrice(ticker)
+            purchase_price = price_at_purchase * alloc
+            price_change = (prediction -
+                            price_at_purchase)/price_at_purchase
+            price_change *= 100  # multiple into percentage
+            new_asset_value = alloc * prediction
+            price_movements.append(
+                [ticker, price_at_purchase,
+                    prediction, price_change, purchase_price, new_asset_value])
+            idx += 1
+        price_movement_df = pd.DataFrame(price_movements,
+                                         columns=["Ticker", "Price",
+                                                  "Future Price", r"%change",
+                                                  "Org. Asset Value", "New Asset Value"])
+        st.write(price_movement_df.style.applymap(
+            gain_loss_styler, subset=[r"%change"]))
+        total_org_asset_value = price_movement_df["Org. Asset Value"].sum()
+        total_future_asset_value = price_movement_df["New Asset Value"].sum(
+        )
+        asset_difference = total_future_asset_value - total_org_asset_value
+        if asset_difference > 0:
+            banner.title("Congratulations!")
+            banner_detail.text("Your Porfolio will set positive gains.")
+        else:
+            banner.title("Bad Position")
+            banner_detail.text(
+                "Seems like your position is predicted to have a negative returns.")
 
 
 class StockAllocationPage(Page):
@@ -108,14 +160,11 @@ class StockAllocationPage(Page):
         pass
 
     def RenderPage(self, context: UnifiedContext) -> None:
-        TICKER_COL = "tickers"
-        ALLOC_COL = "allocation"
         st.header("Stock Allocations")
         cache_df = context.cache.read_state_df(self.page_manager.cache_id)
         allocation_chart = st.empty()
         allocs: Dict[str, List[Decimal]] = {
             TICKER_COL: list(), ALLOC_COL: list()}
-        TICKER_IDX = 1
         for row in cache_df.sort_values(by=[TICKER_COL]).itertuples():
             lhs, mid, rhs = st.beta_columns(3)
             with lhs:
