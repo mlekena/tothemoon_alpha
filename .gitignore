@@ -10,3 +10,5 @@ resources/local_stock_data/
 .ipynb_checkpoints
 .mypy_cache
 .pytest_cache
+user_data.csv
+*_bak/

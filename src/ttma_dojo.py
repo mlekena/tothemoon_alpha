@@ -409,10 +409,9 @@ class DefaultFinModel(object):
         return predicted_price
 
 
-PRODTICKERMODELDICT = GetAvailableModelsIn("results")
-
-
-def BuildDefaultModel(ticker: str, ticker_to_models: Dict[str, str] = PRODTICKERMODELDICT):
+def BuildDefaultModel(ticker: str, ticker_to_models: Dict[str, str] = None):
+    if not ticker_to_models:
+        ticker_to_models = GetAvailableModelsIn("results")
     dmodel = DefaultFinModel(ticker)
     dmodel.GetModel()
     dmodel.LoadData(ticker)  # Load data using set ticker name

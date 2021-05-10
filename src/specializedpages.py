@@ -4,6 +4,7 @@ from src.stockmon import Stocks
 from src.snp_500_dojo import SNPModel
 from src.stock_fetch import GetStockData, STOCK_LOCAL_CACHE_PATH
 
+import os
 import pathlib
 import json
 import pandas as pd
@@ -16,6 +17,23 @@ from streamlit import sidebar as sbar
 from streamlit.report_thread import get_report_ctx
 from yahoo_fin import stock_info as si
 
+UserDataPath = os.path.join("user_data.csv")
+
+
+def MakeUserStockDF(arr: list = []):
+    return pd.DataFrame(data=arr, columns=["ticker"])
+
+
+def GetUserStockListing():
+    if os.path.exists(UserDataPath):
+        return pd.read_csv(UserDataPath)
+    else:
+        return MakeUserStockDF()
+
+
+def StoreUserStockListing(df):
+    df.to_csv(UserDataPath, index=False)
+
 
 class HomePage(Page):
 
@@ -27,7 +45,15 @@ class HomePage(Page):
     def RenderPage(self, context: UnifiedContext) -> None:
         def __RenderStocksInPortfolioPicker(stocks: Stocks) -> List[Tuple[str, bool]]:
             stock_picker: List[Tuple[str, bool]] = []
-            for ticker, _ in stocks.portfolio_.items():
+            user_stocks_df = GetUserStockListing()
+            # for ticker, _ in stocks.portfolio_.items():
+            st.write(user_stocks_df)
+            if user_stocks_df.empty:
+                st.write(
+                    "No Stocks in Portfolio. Select, 'Stock Picker' and build your portfolio.")
+                return []
+            for row in user_stocks_df.sort_values(by=['ticker']).itertuples():
+                ticker = row[1]
                 stock_picker.append((ticker, st.checkbox(ticker)))
             return stock_picker
 
@@ -38,7 +64,7 @@ class HomePage(Page):
                 if not selected:
                     continue
                 status_and_data = stocks.GetStock(ticker)
-                print(type(status_and_data[0]))
+                # print(type(status_and_data[0]))
                 if status_and_data[0] == Success():
                     data = status_and_data[1]
                 else:
@@ -150,6 +176,19 @@ class StockEvaluationPage(Page):
             banner_detail.text(
                 "Seems like your position is predicted to have a negative returns.")
 
+        if st.button("Add to portfolio."):
+            portfolio = GetUserStockListing()
+            newFolio = set()
+            for row in portfolio.itertuples():
+                newFolio |= {row[1]}
+            for row in price_movement_df.itertuples():
+                newFolio |= {row[1]}
+            newFolio_df = pd.DataFrame(data=list(newFolio), columns=["ticker"])
+            StoreUserStockListing(newFolio_df)
+            st.write("Added to Portfolio")
+        if st.button("Re-pick Stocks"):
+            self.page_manager.GotoPage("stock_pick_page_one")
+
 
 class StockAllocationPage(Page):
 
@@ -181,8 +220,8 @@ class StockAllocationPage(Page):
                 st.write("Final Price:{}".format(price * purchased))
         cache_df[TICKER_COL] = allocs[TICKER_COL]
         cache_df[ALLOC_COL] = allocs[ALLOC_COL]
-        st.write(cache_df[TICKER_COL])
-        st.write(cache_df[ALLOC_COL])
+        # st.write(cache_df[TICKER_COL])
+        # st.write(cache_df[ALLOC_COL])
 
         fig = go.Figure(data=[go.Pie(
             labels=cache_df[TICKER_COL], values=cache_df[ALLOC_COL], hole=0.2)])

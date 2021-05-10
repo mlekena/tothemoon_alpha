@@ -125,7 +125,7 @@ def run_bootcamp():
     LOSS = "huber_loss"
     OPTIMIZER = "adam"
     BATCH_SIZE = 64
-    EPOCHS = 5  # Low but used in testing
+    EPOCHS = 500  # Low but used in testing
 
     # def ClearAndMkdir(path: str) -> bool:
     #     assert(os.path.exists(path))
@@ -144,7 +144,7 @@ def run_bootcamp():
 
     # resulting_models: Dict[str, Dict[str, Any]] = dict()
     # trained_models: Dict[str, Dict[str, Any]] = dict()
-    for ticker in snp500_tickers[:5]:
+    for ticker in snp500_tickers:
         print("{}/nLearning {}/n{}".format("#"*50, ticker, "#"*50))
         ticker_data_filename = os.path.join(
             DATA_PATH, f"{ticker}_{date_now}.csv")
