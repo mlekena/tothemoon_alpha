@@ -144,7 +144,7 @@ def run_bootcamp():
 
     # resulting_models: Dict[str, Dict[str, Any]] = dict()
     # trained_models: Dict[str, Dict[str, Any]] = dict()
-    for ticker in snp500_tickers:
+    for ticker in snp500_tickers[6:]:
         print("{}/nLearning {}/n{}".format("#"*50, ticker, "#"*50))
         ticker_data_filename = os.path.join(
             DATA_PATH, f"{ticker}_{date_now}.csv")

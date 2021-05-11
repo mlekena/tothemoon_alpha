@@ -1,1 +1,6 @@
-{"id": "green_energy_sector_2", "title": "Green Energy Sector", "tickers": ["Plug Power Inc", "Enphase ENergy Inc", "Verbund AG", "DAQO New Energy ADR Representing", "Siemens Gamesa Renewable Ene"], "image_path": "resources/energy_category_thumbnail.jpg", "description": "No one likes polluting the earth, but our energy addition is hard to break. Clean"}
+{"id": "green_energy_sector_2", "title": "Automotive Sector", "tickers": [
+    "GM",
+     "TSLA",
+      "HMC",
+       "TM",
+        "RACE"], "image_path": "resources/automotive_category.jpg", "description": "Stocks that continue to drive the future, the powerhouse Automotive sector."}

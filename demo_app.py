@@ -46,7 +46,7 @@ def GenerateSideBar() -> str:
     sbar_user_title = sbar.header("Khabane S. Lekena")
     sbar_user_title = sbar.subheader("Ranking: AA")
     selected_window: str = st.sidebar.radio(
-        "", (home_title, sp_title, social_title))
+        "", (home_title, sp_title))  # , social_title))
     fb, tw, insta = sbar.beta_columns(3)
     with fb:
         st.write("Facebook link")
@@ -80,8 +80,8 @@ try:
     elif selected_window == sp_title:
         st.write("Stock Picking")
         stock_pick_pm.RenderCurrentPage()
-    elif selected_window == social_title:
-        st.write("Social")
+    # elif selected_window == social_title:
+    #     st.write("Social")
     else:
         st.error("Unknown section selected!")
 

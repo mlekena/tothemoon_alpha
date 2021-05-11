@@ -47,7 +47,7 @@ class HomePage(Page):
             stock_picker: List[Tuple[str, bool]] = []
             user_stocks_df = GetUserStockListing()
             # for ticker, _ in stocks.portfolio_.items():
-            st.write(user_stocks_df)
+            # st.write(user_stocks_df)
             if user_stocks_df.empty:
                 st.write(
                     "No Stocks in Portfolio. Select, 'Stock Picker' and build your portfolio.")
@@ -302,7 +302,7 @@ class StockPickerPage(Page):
         cached_data_df = pd.DataFrame()
         GoToStockAllocation = st.empty()
         gathered_stock_selection: Set[str] = set()
-        __RenderTickerSearcher()
+        # __RenderTickerSearcher()
         gathered_stock_selection = gathered_stock_selection | {
             s for s in __RenderEditorsChoiceStockList()}
         for category in CATEGORIES:
